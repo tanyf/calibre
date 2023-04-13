@@ -1,7 +1,7 @@
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from qt.core import QApplication, QDialog, QIcon, QListWidgetItem, Qt
 
 from calibre.constants import islinux
@@ -126,6 +126,11 @@ class TagCategories(QDialog, Ui_TagCategories):
     def category_name_tuple(self, key, name):
         return self.CategoryNameTuple(name, key)
 
+    def item_sort_key(self, v):
+        # Add the key so the order of identical items is predictable.
+        # The tab ensures that the values sort together regardless of key
+        return primary_sort_key(v.v + '\t ' + (v.k[1:] if v.k.startswith('#') else v.k))
+
     def initialize_category_lists(self):
         cfb = self.category_filter_box
         current_cat_filter = (self.category_labels[cfb.currentIndex()]
@@ -154,11 +159,9 @@ class TagCategories(QDialog, Ui_TagCategories):
             self.available_items[key] = av
             sorted_categories.append(self.category_name_tuple(key, self.all_items[key]['name']))
 
-        # Sort the items
-        self.sorted_items.sort(key=lambda v: primary_sort_key(v.v + v.k))
+        self.sorted_items.sort(key=self.item_sort_key)
+        sorted_categories.sort(key=lambda v: primary_sort_key(v.n))
 
-        # Fill in the category names with visible (not hidden) lookup keys
-        sorted_categories.sort(key=lambda v: primary_sort_key(v.n + v.k))
         cfb.blockSignals(True)
         cfb.clear()
         cfb.addItem('', '')
@@ -213,8 +216,13 @@ class TagCategories(QDialog, Ui_TagCategories):
         idx = self.category_filter_box.currentIndex()
         filter_key = self.category_filter_box.itemData(idx)
         self.available_items_box.clear()
+        applied = defaultdict(set)
+        for it in self.applied_items:
+            applied[it.k].add(it.v)
         for it in self.sorted_items:
             if idx != 0 and it.k != filter_key:
+                continue
+            if it.v in applied[it.k]:
                 continue
             self.available_items_box.addItem(self.make_available_list_item(it.k, it.v))
 
@@ -222,12 +230,13 @@ class TagCategories(QDialog, Ui_TagCategories):
         ccn = self.current_cat_name
         if ccn:
             self.applied_items = [v for v in self.user_categories[ccn]]
-            self.applied_items.sort(key=lambda x:primary_sort_key(x.v + x.k))
+            self.applied_items.sort(key=self.item_sort_key)
         else:
             self.applied_items = []
         self.applied_items_box.clear()
         for tup in self.applied_items:
             self.applied_items_box.addItem(self.make_applied_list_item(tup))
+        self.display_filtered_categories()
 
     def apply_button_clicked(self):
         self.apply_tags(node=None)

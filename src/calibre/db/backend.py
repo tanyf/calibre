@@ -55,6 +55,7 @@ from polyglot.builtins import (
 # }}}
 
 
+BOOK_ID_PATH_TEMPLATE = ' ({})'
 CUSTOM_DATA_TYPES = frozenset(('rating', 'text', 'comments', 'datetime',
     'int', 'float', 'bool', 'series', 'composite', 'enumeration'))
 WINDOWS_RESERVED_NAMES = frozenset('CON PRN AUX NUL COM1 COM2 COM3 COM4 COM5 COM6 COM7 COM8 COM9 LPT1 LPT2 LPT3 LPT4 LPT5 LPT6 LPT7 LPT8 LPT9'.split())
@@ -162,7 +163,7 @@ class DBPrefs(dict):  # {{{
             data = json.dumps(self, indent=2, default=to_json)
             if not isinstance(data, bytes):
                 data = data.encode('utf-8')
-            with open(to_filename, "wb") as f:
+            with open(to_filename, 'wb') as f:
                 f.write(data)
         except:
             import traceback
@@ -172,7 +173,7 @@ class DBPrefs(dict):  # {{{
     def read_serialized(cls, library_path, recreate_prefs=False):
         from_filename = os.path.join(library_path,
                 'metadata_db_prefs_backup.json')
-        with open(from_filename, "rb") as f:
+        with open(from_filename, 'rb') as f:
             return json.load(f, object_hook=from_json)
 # }}}
 
@@ -425,13 +426,8 @@ class DB:
                  restore_all_prefs=False, progress_callback=lambda x, y:True,
                  load_user_formatter_functions=True):
         self.is_closed = False
-        try:
-            if isbytestring(library_path):
-                library_path = library_path.decode(filesystem_encoding)
-        except:
-            import traceback
-            traceback.print_exc()
-
+        if isbytestring(library_path):
+            library_path = library_path.decode(filesystem_encoding)
         self.field_metadata = FieldMetadata()
 
         self.library_path = os.path.abspath(library_path)
@@ -1121,6 +1117,7 @@ class DB:
                 CREATE TABLE %s(
                     id    INTEGER PRIMARY KEY AUTOINCREMENT,
                     value %s NOT NULL %s,
+                    link TEXT NOT NULL DEFAULT "",
                     UNIQUE(value));
                 '''%(table, dt, collate),
 
@@ -1337,7 +1334,7 @@ class DB:
         '''
         Construct the directory name for this book based on its metadata.
         '''
-        book_id = ' (%d)' % book_id
+        book_id = BOOK_ID_PATH_TEMPLATE.format(book_id)
         l = self.PATH_LIMIT - (len(book_id) // 2) - 2
         author = ascii_filename(author)[:l]
         title  = ascii_filename(title.lstrip())[:l].rstrip()
@@ -1385,8 +1382,8 @@ class DB:
     @property
     def custom_tables(self):
         return {x[0] for x in self.conn.get(
-            'SELECT name FROM sqlite_master WHERE type="table" AND '
-            '(name GLOB "custom_column_*" OR name GLOB "books_custom_column_*")')}
+            'SELECT name FROM sqlite_master WHERE type=\'table\' AND '
+            '(name GLOB \'custom_column_*\' OR name GLOB \'books_custom_column_*\')')}
 
     @classmethod
     def exists_at(cls, path):
@@ -1432,8 +1429,22 @@ class DB:
                     pprint.pprint(table.metadata)
                     raise
 
-    def format_abspath(self, book_id, fmt, fname, path):
-        path = os.path.join(self.library_path, path)
+    def find_path_for_book(self, book_id):
+        q = BOOK_ID_PATH_TEMPLATE.format(book_id)
+        for author_dir in os.scandir(self.library_path):
+            if not author_dir.is_dir():
+                continue
+            try:
+                book_dir_iter = os.scandir(author_dir.path)
+            except OSError:
+                pass
+            else:
+                for book_dir in book_dir_iter:
+                    if book_dir.name.endswith(q) and book_dir.is_dir():
+                        return book_dir.path
+
+    def format_abspath(self, book_id, fmt, fname, book_path):
+        path = os.path.join(self.library_path, book_path)
         fmt = ('.' + fmt.lower()) if fmt else ''
         fmt_path = os.path.join(path, fname+fmt)
         if os.path.exists(fmt_path):
@@ -1531,8 +1542,8 @@ class DB:
         path = os.path.abspath(os.path.join(self.library_path, path, 'cover.jpg'))
         if windows_atomic_move is not None:
             if not isinstance(dest, string_or_bytes):
-                raise Exception("Error, you must pass the dest as a path when"
-                        " using windows_atomic_move")
+                raise Exception('Error, you must pass the dest as a path when'
+                        ' using windows_atomic_move')
             if os.access(path, os.R_OK) and dest and not samefile(dest, path):
                 windows_atomic_move.copy_path_to(path, dest)
                 return True
@@ -1638,8 +1649,8 @@ class DB:
             return False
         if windows_atomic_move is not None:
             if not isinstance(dest, string_or_bytes):
-                raise Exception("Error, you must pass the dest as a path when"
-                        " using windows_atomic_move")
+                raise Exception('Error, you must pass the dest as a path when'
+                        ' using windows_atomic_move')
             if dest:
                 if samefile(dest, path):
                     # Ensure that the file has the same case as dest
@@ -1774,9 +1785,10 @@ class DB:
                     self.copy_format_to(book_id, fmt, ofmt_fname, current_path,
                                         dest, windows_atomic_move=wam, use_hardlink=True)
             # Update db to reflect new file locations
-            for fmt in formats:
-                formats_field.table.set_fname(book_id, fmt, fname, self)
-            path_field.table.set_path(book_id, path, self)
+            with self.conn:
+                for fmt in formats:
+                    formats_field.table.set_fname(book_id, fmt, fname, self)
+                path_field.table.set_path(book_id, path, self)
 
             # Delete not needed files and directories
             if source_ok:
@@ -1919,11 +1931,11 @@ class DB:
         text = 'annotations.searchable_text'
         if highlight_start is not None and highlight_end is not None:
             if snippet_size is not None:
-                text = 'snippet({fts_table}, 0, "{highlight_start}", "{highlight_end}", "…", {snippet_size})'.format(
+                text = "snippet({fts_table}, 0, '{highlight_start}', '{highlight_end}', '…', {snippet_size})".format(
                         fts_table=fts_table, highlight_start=highlight_start, highlight_end=highlight_end,
                         snippet_size=max(1, min(snippet_size, 64)))
             else:
-                text = f'highlight({fts_table}, 0, "{highlight_start}", "{highlight_end}")'
+                text = f"highlight({fts_table}, 0, '{highlight_start}', '{highlight_end}')"
         query = 'SELECT {0}.id, {0}.book, {0}.format, {0}.user_type, {0}.user, {0}.annot_data, {1} FROM {0} '
         query = query.format('annotations', text)
         query += ' JOIN {fts_table} ON annotations.id = {fts_table}.rowid'.format(fts_table=fts_table)
@@ -1994,7 +2006,7 @@ class DB:
                     new_annot['title'] = annot_data['title']
                 replacements.append((json.dumps(new_annot), timestamp, annot_id))
         if replacements:
-            self.executemany('UPDATE annotations SET annot_data=?, timestamp=?, searchable_text="" WHERE id=?', replacements)
+            self.executemany("UPDATE annotations SET annot_data=?, timestamp=?, searchable_text='' WHERE id=?", replacements)
         if removals:
             self.executemany('DELETE FROM annotations WHERE id=?', removals)
 
@@ -2085,7 +2097,7 @@ class DB:
     def annotation_count_for_book(self, book_id):
         for (count,) in self.execute('''
                  SELECT count(id) FROM annotations
-                 WHERE book=? AND json_extract(annot_data, "$.removed") IS NULL
+                 WHERE book=? AND json_extract(annot_data, '$.removed') IS NULL
                  ''', (book_id,)):
             return count
         return 0

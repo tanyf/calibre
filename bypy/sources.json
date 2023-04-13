@@ -106,6 +106,14 @@
         }
     },
 
+    {
+        "name": "zstd",
+        "unix": {
+            "filename": "zstd-1.5.5.tar.gz",
+            "hash": "sha256:9c4396cc829cfae319a6e2615202e82aad41372073482fce286fac78646d3ee4",
+            "urls": ["https://github.com/facebook/zstd/releases/download/v1.5.5/{filename}"]
+        }
+    },
 
     {
         "name": "expat",
@@ -569,8 +577,8 @@
     {
         "name": "unrardll",
         "unix": {
-            "filename": "unrardll-0.1.5.tar.gz",
-            "hash": "sha256:8bebb480b96cd49d4290d814914f39cff75cf0fa0514c4790bb32b1757227c78",
+            "filename": "unrardll-0.1.7.tar.gz",
+            "hash": "sha256:e1067fe27bb4de204ef8f3692f23d93c5d3b4292f78b292c6fc7dc4f75749f76",
             "urls": ["pypi"]
         }
     },
@@ -853,8 +861,8 @@
         "name": "pyzstd",
 		"comment": "Needed by py7zr",
         "unix": {
-            "filename": "pyzstd-0.15.0.tar.gz",
-            "hash": "sha256:bf15a39cb3c9b662775e22ffa8c4da09fdde6a15ece5e0ed710b6d3b4329cf36",
+            "filename": "pyzstd-0.15.6.tar.gz",
+            "hash": "sha256:32a1b67d5340d8df381e718a788417455edd76bed7e8a4cbd259acdc30b5e17e",
             "urls": ["pypi"]
         }
     },
