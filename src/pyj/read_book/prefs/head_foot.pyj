@@ -8,7 +8,7 @@ from gettext import gettext as _, ngettext
 from book_list.globals import get_session_data
 from dom import unique_id
 from read_book.prefs.utils import create_button_box
-from session import defaults, get_interface_data
+from session import session_defaults, get_interface_data
 from utils import fmt_sidx
 
 CONTAINER = unique_id('reader-hf-prefs')
@@ -34,6 +34,8 @@ def create_item(region, label, style):
             sep(),
             opt(_('Top level section'), 'top-section'),
             opt(_('Current section'), 'section'),
+            opt(_('View mode'), 'view-mode'),
+            opt(_('View mode as icon'), 'view-mode-icon'),
             sep(),
             opt(_('Clock'), 'clock'),
             sep(),
@@ -106,7 +108,7 @@ def restore_defaults():
     container = document.getElementById(CONTAINER)
     for which in Object.keys(groups()):
         table = container.querySelector(f'table[data-which={which}]')
-        apply_setting(table, defaults[which] or {})
+        apply_setting(table, session_defaults()[which] or {})
 
 
 def create_head_foot_panel(container, apply_func, cancel_func):
@@ -179,7 +181,7 @@ def format_pos(progress_frac, length):
     return f'{pos:.1f} / {pages}'
 
 
-def render_head_foot(div, which, region, metadata, current_toc_node, current_toc_toplevel_node, book_time, chapter_time, pos, override):
+def render_head_foot(div, which, region, metadata, current_toc_node, current_toc_toplevel_node, book_time, chapter_time, pos, override, view_mode):
     template = get_session_data().get(which) or {}
     field = template[region] or 'empty'
     interface_data = get_interface_data()
@@ -207,6 +209,10 @@ def render_head_foot(div, which, region, metadata, current_toc_node, current_toc
         text = current_toc_toplevel_node.title if current_toc_toplevel_node else ''
         if not text:
             text = current_toc_node.title if current_toc_node else ''
+    elif field is 'view-mode':
+        text = _('Paged') if view_mode is 'paged' else _('Flow')
+    elif field is 'view-mode-icon':
+        text = '📄' if view_mode is 'paged' else '📜'
     elif field.startswith('time-'):
         if book_time is None or chapter_time is None:
             text = _('Calculating...')

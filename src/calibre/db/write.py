@@ -11,10 +11,9 @@ from functools import partial
 
 from calibre.constants import preferred_encoding
 from calibre.ebooks.metadata import author_to_author_sort, title_sort
-from calibre.utils.date import (
-    UNDEFINED_DATE, is_date_undefined, isoformat, parse_date, parse_only_date,
-)
-from calibre.utils.icu import lower as icu_lower, strcmp
+from calibre.utils.date import UNDEFINED_DATE, is_date_undefined, isoformat, parse_date, parse_only_date
+from calibre.utils.icu import lower as icu_lower
+from calibre.utils.icu import strcmp
 from calibre.utils.localization import canonicalize_lang
 from polyglot.builtins import iteritems, itervalues
 
@@ -297,6 +296,8 @@ def get_db_id(val, db, m, table, kmap, rid_map, allow_case_change,
             table.asort_map[item_id] = aus
         if hasattr(table, 'link_map'):
             table.link_map[item_id] = ''
+        if table.supports_notes:
+            db.unretire_note(table.name, item_id, val)
     elif allow_case_change and val != table.id_map[item_id]:
         case_changes[item_id] = val
     val_map[val] = item_id
@@ -378,9 +379,10 @@ def many_one(book_id_val_map, db, field, allow_case_change, *args):
                     iteritems(updated)))
 
     # Remove no longer used items
-    remove = {item_id for item_id in table.id_map if not
-              table.col_book_map.get(item_id, False)}
+    remove = {item_id:item_val for item_id, item_val in table.id_map.items() if not table.col_book_map.get(item_id, False)}
     if remove:
+        if table.supports_notes:
+            db.clear_notes_for_category_items(table.name, remove)
         db.executemany('DELETE FROM %s WHERE id=?'%m['table'],
             ((item_id,) for item_id in remove))
         for item_id in remove:
@@ -482,9 +484,10 @@ def many_many(book_id_val_map, db, field, allow_case_change, *args):
             field.author_sort_field.writer.set_books(aus_map, db)
 
     # Remove no longer used items
-    remove = {item_id for item_id in table.id_map if not
-              table.col_book_map.get(item_id, False)}
+    remove = {item_id:item_val for item_id, item_val in table.id_map.items() if not table.col_book_map.get(item_id, False)}
     if remove:
+        if table.supports_notes:
+            db.clear_notes_for_category_items(table.name, remove)
         db.executemany('DELETE FROM %s WHERE id=?'%m['table'],
             ((item_id,) for item_id in remove))
         for item_id in remove:
@@ -494,7 +497,6 @@ def many_many(book_id_val_map, db, field, allow_case_change, *args):
                 table.asort_map.pop(item_id, None)
             if hasattr(table, 'link_map'):
                 table.link_map.pop(item_id, None)
-
     return dirtied
 
 # }}}

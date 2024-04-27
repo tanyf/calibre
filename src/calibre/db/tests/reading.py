@@ -5,13 +5,14 @@ __license__   = 'GPL v3'
 __copyright__ = '2011, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import datetime, os
+import datetime
+import os
 from io import BytesIO
 from time import time
 
+from calibre.db.tests.base import BaseTest
 from calibre.utils.date import utc_tz
 from calibre.utils.localization import calibre_langcode_to_name
-from calibre.db.tests.base import BaseTest
 from polyglot.builtins import iteritems, itervalues
 
 
@@ -244,8 +245,8 @@ class ReadingTest(BaseTest):
     # }}}
 
     def test_serialize_metadata(self):  # {{{
-        from calibre.utils.serialize import json_dumps, json_loads, msgpack_dumps, msgpack_loads
         from calibre.library.field_metadata import fm_as_dict
+        from calibre.utils.serialize import json_dumps, json_loads, msgpack_dumps, msgpack_loads
         cache = self.init_cache(self.library_path)
         fm = cache.field_metadata
         for d, l in ((json_dumps, json_loads), (msgpack_dumps, msgpack_loads)):
@@ -270,7 +271,11 @@ class ReadingTest(BaseTest):
         for book_id, cdata in iteritems(covers):
             self.assertEqual(cdata, cache.cover(book_id), 'Reading of cover failed')
             f = cache.cover(book_id, as_file=True)
-            self.assertEqual(cdata, f.read() if f else f, 'Reading of cover as file failed')
+            try:
+                self.assertEqual(cdata, f.read() if f else f, 'Reading of cover as file failed')
+            finally:
+                if f:
+                    f.close()
             if cdata:
                 with open(cache.cover(book_id, as_path=True), 'rb') as f:
                     self.assertEqual(cdata, f.read(), 'Reading of cover as path failed')
@@ -423,8 +428,8 @@ class ReadingTest(BaseTest):
 
     def test_get_formats(self):  # {{{
         'Test reading ebook formats using the format() method'
-        from calibre.library.database2 import LibraryDatabase2
         from calibre.db.cache import NoSuchFormat
+        from calibre.library.database2 import LibraryDatabase2
         old = LibraryDatabase2(self.library_path)
         ids = old.all_ids()
         lf = {i:set(old.formats(i, index_is_id=True).split(',')) if old.formats(
@@ -441,9 +446,9 @@ class ReadingTest(BaseTest):
                 old = formats[book_id][fmt]
                 self.assertEqual(old, cache.format(book_id, fmt),
                                  'Old and new format disagree')
-                f = cache.format(book_id, fmt, as_file=True)
-                self.assertEqual(old, f.read(),
-                                 'Failed to read format as file')
+                with cache.format(book_id, fmt, as_file=True) as f:
+                    self.assertEqual(old, f.read(),
+                                    'Failed to read format as file')
                 with open(cache.format(book_id, fmt, as_path=True,
                                        preserve_filename=True), 'rb') as f:
                     self.assertEqual(old, f.read(),
@@ -511,8 +516,8 @@ class ReadingTest(BaseTest):
 
     def test_datetime(self):  # {{{
         ' Test the reading of datetimes stored in the db '
+        from calibre.db.tables import UNDEFINED_DATE, _c_speedup, c_parse
         from calibre.utils.date import parse_date
-        from calibre.db.tables import c_parse, UNDEFINED_DATE, _c_speedup
 
         # First test parsing of string to UTC time
         for raw in ('2013-07-22 15:18:29+05:30', '  2013-07-22 15:18:29+00:00', '2013-07-22 15:18:29', '2003-09-21 23:30:00-06:00'):
@@ -649,6 +654,65 @@ class ReadingTest(BaseTest):
         mi, pmi = cache.get_metadata(1), cache.get_proxy_metadata(1)
         self.assertEqual(mi.get('#comp1'), pmi.get('#comp1'))
 
+        # Test overridden Metadata methods
+
+        self.assertTrue(pmi.has_key('tags') == mi.has_key('tags'))
+
+        self.assertFalse(pmi.has_key('taggs'), 'taggs attribute')
+        self.assertTrue(pmi.has_key('taggs') == mi.has_key('taggs'))
+
+        self.assertSetEqual(set(pmi.custom_field_keys()), set(mi.custom_field_keys()))
+
+        self.assertEqual(pmi.get_extra('#series', 0), 3)
+        self.assertEqual(pmi.get_extra('#series', 0), mi.get_extra('#series', 0))
+
+        self.assertDictEqual(pmi.get_identifiers(), {'test': 'two'})
+        self.assertDictEqual(pmi.get_identifiers(), mi.get_identifiers())
+
+        self.assertTrue(pmi.has_identifier('test'))
+        self.assertTrue(pmi.has_identifier('test') == mi.has_identifier('test'))
+
+        self.assertListEqual(list(pmi.custom_field_keys()), list(mi.custom_field_keys()))
+
+        # ProxyMetadata has the virtual fields while Metadata does not.
+        self.assertSetEqual(set(pmi.all_field_keys())-{'id', 'series_sort', 'path',
+                                                       'in_tag_browser', 'sort', 'ondevice',
+                                                       'au_map', 'marked', '#series_index'},
+                            set(mi.all_field_keys()))
+
+        # mi.get_standard_metadata() doesn't include the rec_index metadata key
+        fm_pmi = pmi.get_standard_metadata('series')
+        fm_pmi.pop('rec_index')
+        self.assertDictEqual(fm_pmi, mi.get_standard_metadata('series', make_copy=False))
+
+        # The ProxyMetadata versions don't include the values. Note that the mi
+        # version of get_standard_metadata won't return custom columns while the
+        # ProxyMetadata version will
+        fm_mi = mi.get_user_metadata('#series', make_copy=False)
+        fm_mi.pop('#extra#')
+        fm_mi.pop('#value#')
+        self.assertDictEqual(pmi.get_standard_metadata('#series'), fm_mi)
+        self.assertDictEqual(pmi.get_user_metadata('#series'), fm_mi)
+
+        fm_mi = mi.get_all_user_metadata(make_copy=False)
+        for one in fm_mi:
+            fm_mi[one].pop('#extra#', None)
+            fm_mi[one].pop('#value#', None)
+        self.assertDictEqual(pmi.get_all_user_metadata(make_copy=False), fm_mi)
+
+        # Check the unimplemented methods
+        self.assertRaises(NotImplementedError, lambda: 'foo' in pmi)
+        self.assertRaises(NotImplementedError, pmi.set, 'a', 'a')
+        self.assertRaises(NotImplementedError, pmi.set_identifiers, 'a', 'a')
+        self.assertRaises(NotImplementedError, pmi.set_identifier, 'a', 'a')
+        self.assertRaises(NotImplementedError, pmi.all_non_none_fields)
+        self.assertRaises(NotImplementedError, pmi.set_all_user_metadata, {})
+        self.assertRaises(NotImplementedError, pmi.set_user_metadata, 'a', {})
+        self.assertRaises(NotImplementedError, pmi.remove_stale_user_metadata, {})
+        self.assertRaises(NotImplementedError, pmi.template_to_attribute, {}, {})
+        self.assertRaises(NotImplementedError, pmi.smart_update, {})
+
+
     # }}}
 
     def test_marked_field(self):  # {{{
@@ -712,8 +776,8 @@ class ReadingTest(BaseTest):
 
     def test_find_identical_books(self):  # {{{
         ' Test find_identical_books '
-        from calibre.ebooks.metadata.book.base import Metadata
         from calibre.db.utils import find_identical_books
+        from calibre.ebooks.metadata.book.base import Metadata
         # 'find_identical_books': [(,), (Metadata('unknown'),), (Metadata('xxxx'),)],
         cache = self.init_cache(self.library_path)
         cache.set_field('languages', {1: ('fra', 'deu')})
@@ -878,8 +942,7 @@ def evaluate(book, ctx):
         self.assertEqual(set(v.split(',')), {'Tag One', 'News', 'Tag Two'})
 
         # test calling a python stored template from a GPM template
-        from calibre.utils.formatter_functions import (
-                load_user_template_functions, unload_user_template_functions)
+        from calibre.utils.formatter_functions import load_user_template_functions, unload_user_template_functions
         load_user_template_functions('aaaaa',
                                      [['python_stored_template',
                                       "",

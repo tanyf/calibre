@@ -8,13 +8,18 @@ from calibre.devices.kindle.apnx import APNXBuilder
 Device driver for Amazon's Kindle
 '''
 
-import datetime, os, re, json, hashlib, errno
+import errno
+import hashlib
+import json
+import os
+import re
 
+from calibre import fsync, prints, strftime
 from calibre.constants import DEBUG, filesystem_encoding
 from calibre.devices.interface import OpenPopupMessage
 from calibre.devices.kindle.bookmark import Bookmark
 from calibre.devices.usbms.driver import USBMS
-from calibre import strftime, fsync, prints
+from calibre.utils.date import utcfromtimestamp
 from polyglot.builtins import as_bytes, as_unicode
 
 '''
@@ -218,9 +223,9 @@ class KINDLE(USBMS):
 
         mc_path = get_my_clippings(storage, bookmarked_books)
         if mc_path:
-            timestamp = datetime.datetime.utcfromtimestamp(os.path.getmtime(mc_path))
+            timestamp = utcfromtimestamp(os.path.getmtime(mc_path))
             bookmarked_books['clippings'] = self.UserAnnotation(type='kindle_clippings',
-                                              value=dict(path=mc_path,timestamp=timestamp))
+                                              value=dict(path=mc_path, timestamp=timestamp))
 
         # This returns as job.result in gui2.ui.annotations_fetched(self,job)
         return bookmarked_books
@@ -229,7 +234,7 @@ class KINDLE(USBMS):
         from calibre.ebooks.BeautifulSoup import BeautifulSoup
         # Returns <div class="user_annotations"> ... </div>
         last_read_location = bookmark.last_read_location
-        timestamp = datetime.datetime.utcfromtimestamp(bookmark.timestamp)
+        timestamp = utcfromtimestamp(bookmark.timestamp)
         percent_read = bookmark.percent_read
 
         ka_soup = BeautifulSoup()
@@ -291,8 +296,8 @@ class KINDLE(USBMS):
         return ka_soup
 
     def add_annotation_to_library(self, db, db_id, annotation):
-        from calibre.ebooks.metadata import MetaInformation
         from calibre.ebooks.BeautifulSoup import prettify
+        from calibre.ebooks.metadata import MetaInformation
 
         bm = annotation
         ignore_tags = {'Catalog', 'Clippings'}
@@ -497,7 +502,7 @@ class KINDLE2(KINDLE):
         return os.path.join(self._main_prefix, 'system', 'thumbnails')
 
     def thumbpath_from_filepath(self, filepath):
-        from calibre.ebooks.metadata.kfx import (CONTAINER_MAGIC, read_book_key_kfx)
+        from calibre.ebooks.metadata.kfx import CONTAINER_MAGIC, read_book_key_kfx
         from calibre.ebooks.mobi.reader.headers import MetadataHeader
         from calibre.utils.logging import default_log
         thumb_dir = self.amazon_system_thumbnails_dir()

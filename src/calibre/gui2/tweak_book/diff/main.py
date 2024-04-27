@@ -9,10 +9,29 @@ import re
 import sys
 import textwrap
 from functools import partial
+
 from qt.core import (
-    QApplication, QCursor, QDialogButtonBox, QEventLoop, QGridLayout, QHBoxLayout,
-    QIcon, QKeySequence, QLabel, QMenu, QPainter, QRadioButton, QRect, QSize,
-    QStackedLayout, Qt, QTimer, QToolButton, QVBoxLayout, QWidget, pyqtSignal,
+    QApplication,
+    QCursor,
+    QDialogButtonBox,
+    QEventLoop,
+    QGridLayout,
+    QHBoxLayout,
+    QIcon,
+    QKeySequence,
+    QLabel,
+    QMenu,
+    QPainter,
+    QRadioButton,
+    QRect,
+    QSize,
+    QStackedLayout,
+    Qt,
+    QTimer,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
 )
 
 from calibre.ebooks.oeb.polish.container import Container
@@ -218,10 +237,8 @@ class Diff(Dialog):
         self.apply_diff_calls = []
         self.show_open_in_editor = show_open_in_editor
         self.revert_button_msg = revert_button_msg
+        self.show_as_window = show_as_window
         Dialog.__init__(self, _('Differences between books'), 'diff-dialog', parent=parent)
-        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMinMaxButtonsHint)
-        if show_as_window:
-            self.setWindowFlags(Qt.WindowType.Window)
         self.view.line_activated.connect(self.line_activated)
 
     def sizeHint(self):
@@ -230,6 +247,10 @@ class Diff(Dialog):
 
     def setup_ui(self):
         self.setWindowIcon(QIcon.ic('diff.png'))
+        if self.show_as_window:
+            self.setWindowFlags(Qt.WindowType.Window)
+        else:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMinMaxButtonsHint)
         self.stacks = st = QStackedLayout(self)
         self.busy = BusyWidget(self)
         self.w = QWidget(self)

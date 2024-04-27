@@ -5,28 +5,61 @@ __license__   = 'GPL v3'
 __copyright__ = '2011, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import errno
 import os
 from datetime import datetime
 from functools import partial
+
 from qt.core import (
-    QDialog, QDialogButtonBox, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QIcon,
-    QInputDialog, QKeySequence, QMenu, QPushButton, QScrollArea, QShortcut, QSize,
-    QSizePolicy, QSpacerItem, QSplitter, Qt, QTabWidget, QToolButton, QVBoxLayout,
-    QWidget, pyqtSignal,
+    QDialog,
+    QDialogButtonBox,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QIcon,
+    QInputDialog,
+    QKeySequence,
+    QMenu,
+    QPushButton,
+    QScrollArea,
+    QShortcut,
+    QSize,
+    QSizePolicy,
+    QSpacerItem,
+    QSplitter,
+    Qt,
+    QTabWidget,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
 )
 
 from calibre.constants import ismacos
 from calibre.ebooks.metadata import authors_to_string, string_to_authors
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.gui2 import error_dialog, gprefs, pixmap_to_data
-from calibre.gui2.custom_column_widgets import Comments, populate_metadata_page
+from calibre.gui2.custom_column_widgets import Comments, get_custom_columns_to_display_in_editor, populate_metadata_page
 from calibre.gui2.dialogs.confirm_delete import confirm
 from calibre.gui2.metadata.basic_widgets import (
-    AuthorsEdit, AuthorSortEdit, BuddyLabel, CommentsEdit, Cover, DateEdit,
-    FormatsManager, IdentifiersEdit, LanguagesEdit, PubdateEdit, PublisherEdit,
-    RatingEdit, RightClickButton, SeriesEdit, SeriesIndexEdit, TagsEdit, TitleEdit,
-    TitleSortEdit, show_locked_file_error,
+    AuthorsEdit,
+    AuthorSortEdit,
+    BuddyLabel,
+    CommentsEdit,
+    Cover,
+    DateEdit,
+    FormatsManager,
+    IdentifiersEdit,
+    LanguagesEdit,
+    PubdateEdit,
+    PublisherEdit,
+    RatingEdit,
+    RightClickButton,
+    SeriesEdit,
+    SeriesIndexEdit,
+    TagsEdit,
+    TitleEdit,
+    TitleSortEdit,
 )
 from calibre.gui2.metadata.single_download import FullFetch
 from calibre.gui2.widgets2 import CenteredToolButton
@@ -93,6 +126,12 @@ class MetadataSingleDialogBase(QDialog):
         self.prev_button = QPushButton(QIcon.ic('back.png'), _('Previous'),
                 self)
         self.prev_button.setShortcut(QKeySequence('Alt+Left'))
+        from calibre.gui2.actions.edit_metadata import DATA_FILES_ICON_NAME
+        self.data_files_button = QPushButton(QIcon.ic(DATA_FILES_ICON_NAME), _('Data files'), self)
+        self.data_files_button.setShortcut(QKeySequence('Alt+Space'))
+        self.data_files_button.setToolTip(_('Manage the extra data files associated with this book [{}]').format(
+            self.data_files_button.shortcut().toString(QKeySequence.SequenceFormat.NativeText)))
+        self.data_files_button.clicked.connect(self.manage_data_files)
 
         self.button_box.addButton(self.prev_button, QDialogButtonBox.ButtonRole.ActionRole)
         self.button_box.addButton(self.next_button, QDialogButtonBox.ButtonRole.ActionRole)
@@ -107,6 +146,7 @@ class MetadataSingleDialogBase(QDialog):
         self.l.addWidget(self.central_widget)
         ll = self.button_box_layout = QHBoxLayout()
         self.l.addLayout(ll)
+        ll.addWidget(self.data_files_button)
         ll.addSpacing(10)
         ll.addWidget(self.button_box)
 
@@ -115,7 +155,7 @@ class MetadataSingleDialogBase(QDialog):
 
         self.create_basic_metadata_widgets()
 
-        if len(self.db.custom_column_label_map):
+        if len(get_custom_columns_to_display_in_editor(self.db)):
             self.create_custom_metadata_widgets()
         self.comments_edit_state_at_apply = {self.comments:None}
 
@@ -191,12 +231,12 @@ class MetadataSingleDialogBase(QDialog):
         self.manage_authors_button = QToolButton(self)
         self.manage_authors_button.setIcon(QIcon.ic('user_profile.png'))
         self.manage_authors_button.setToolTip('<p>' + _(
-            'Open the Authors Category editor. Use to rename authors and correct '
+            'Open the Manage Authors editor. Use to rename authors and correct '
             'individual author\'s sort values') + '</p>')
         self.manage_authors_button.clicked.connect(self.authors.manage_authors)
 
         self.series_editor_button = QToolButton(self)
-        self.series_editor_button.setToolTip(_('Open the Series Category editor'))
+        self.series_editor_button.setToolTip(_('Open the Manage Series editor'))
         self.series_editor_button.setIcon(QIcon.ic('chapters.png'))
         self.series_editor_button.clicked.connect(self.series_editor)
         self.series = SeriesEdit(self)
@@ -233,7 +273,7 @@ class MetadataSingleDialogBase(QDialog):
 
         self.tags = TagsEdit(self)
         self.tags_editor_button = QToolButton(self)
-        self.tags_editor_button.setToolTip(_('Open the Tag editor. If Ctrl or Shift is pressed, open the Tags Category editor'))
+        self.tags_editor_button.setToolTip(_('Open the Tag editor. If Ctrl or Shift is pressed, open the Manage Tags editor'))
         self.tags_editor_button.setIcon(QIcon.ic('chapters.png'))
         self.tags_editor_button.clicked.connect(self.tags_editor)
         self.tags.tag_editor_requested.connect(self.tags_editor)
@@ -252,8 +292,8 @@ class MetadataSingleDialogBase(QDialog):
         self.paste_isbn_button = b = RightClickButton(self)
         b.setToolTip('<p>' +
                     _('Paste the contents of the clipboard into the '
-                      'identifiers prefixed with isbn: or url:. Or right click, '
-                      'to choose a different prefix.') + '</p>')
+                      'identifiers prefixed with an auto-detected prefix such as isbn: or url:. Or right click, '
+                      'and choose a specific prefix to use.') + '</p>')
         b.setIcon(QIcon.ic('edit-paste.png'))
         b.clicked.connect(self.identifiers.paste_identifier)
         b.setPopupMode(QToolButton.ToolButtonPopupMode.DelayedPopup)
@@ -261,7 +301,7 @@ class MetadataSingleDialogBase(QDialog):
         self.update_paste_identifiers_menu()
 
         self.publisher_editor_button = QToolButton(self)
-        self.publisher_editor_button.setToolTip(_('Open the Publishers Category editor'))
+        self.publisher_editor_button.setToolTip(_('Open the Manage Publishers editor'))
         self.publisher_editor_button.setIcon(QIcon.ic('chapters.png'))
         self.publisher_editor_button.clicked.connect(self.publisher_editor)
         self.publisher = PublisherEdit(self)
@@ -384,6 +424,11 @@ class MetadataSingleDialogBase(QDialog):
     def data_changed(self):
         self.was_data_edited = True
 
+    def manage_data_files(self):
+        from calibre.gui2.dialogs.data_files_manager import DataFilesManager
+        d = DataFilesManager(self.db, self.book_id, self)
+        d.exec()
+
     def __call__(self, id_):
         self.book_id = id_
         self.books_to_refresh = set()
@@ -404,7 +449,7 @@ class MetadataSingleDialogBase(QDialog):
         if len(title) > 50:
             title = title[:50] + '\u2026'
         self.setWindowTitle(BASE_TITLE + ' - ' +
-                title + ' - ' +
+                title + ' -' +
                 _(' [%(num)d of %(tot)d]')%dict(num=self.current_row+1,
                 tot=len(self.row_list)))
 
@@ -448,17 +493,9 @@ class MetadataSingleDialogBase(QDialog):
         if ext in ('pdf', 'cbz', 'cbr'):
             return self.choose_cover_from_pages(ext)
         try:
-            mi, ext = self.formats_manager.get_selected_format_metadata(self.db,
-                    self.book_id)
-        except OSError as err:
-            if getattr(err, 'errno', None) == errno.EACCES:  # Permission denied
-                import traceback
-                fname = err.filename if err.filename else 'file'
-                error_dialog(self, _('Permission denied'),
-                        _('Could not open %s. Is it being used by another'
-                        ' program?')%fname, det_msg=traceback.format_exc(),
-                        show=True)
-                return
+            mi, ext = self.formats_manager.get_selected_format_metadata(self.db, self.book_id)
+        except OSError as e:
+            e.locking_violation_msg = _('Could not read from book file.')
             raise
         if mi is None:
             return
@@ -608,18 +645,16 @@ class MetadataSingleDialogBase(QDialog):
             return True
         self.comments_edit_state_at_apply = {w:w.tab for w in self.comments_edit_state_at_apply}
         for widget in self.basic_metadata_widgets:
+            if hasattr(widget, 'validate_for_commit'):
+                title, msg, det_msg = widget.validate_for_commit()
+                if title is not None:
+                    error_dialog(self, title, msg, det_msg=det_msg, show=True)
+                    return False
             try:
-                if hasattr(widget, 'validate_for_commit'):
-                    title, msg, det_msg = widget.validate_for_commit()
-                    if title is not None:
-                        error_dialog(self, title, msg, det_msg=det_msg, show=True)
-                        return False
                 widget.commit(self.db, self.book_id)
                 self.books_to_refresh |= getattr(widget, 'books_to_refresh', set())
-            except OSError as err:
-                if getattr(err, 'errno', None) == errno.EACCES:  # Permission denied
-                    show_locked_file_error(self, err)
-                    return False
+            except OSError as e:
+                e.locking_violation_msg = _('Could not change on-disk location of this book\'s files.')
                 raise
         for widget in getattr(self, 'custom_metadata_widgets', []):
             self.books_to_refresh |= widget.commit(self.book_id)

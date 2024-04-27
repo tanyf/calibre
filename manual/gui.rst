@@ -57,7 +57,9 @@ Add books
 
     6. **Add files to selected book records**: Allows you to add or update the files associated with an existing book in your library.
 
-    7. **Add an empty file to selected book records**: Allows you to add an empty file of the specified format to the selected book records.
+    7. **Add data files to selected book records**: Allows you to add any number of extra files that will be stored in a :file:`data` sub-directory in the book directory. See :ref:`data_files` for details.
+
+    8. **Add an empty file to selected book records**: Allows you to add an empty file of the specified format to the selected book records.
 
 The :guilabel:`Add books` action can read metadata from a wide variety of e-book formats. In addition, it tries to guess metadata from the filename.
 See the :ref:`config_filename_metadata` section, to learn how to configure this.
@@ -83,6 +85,7 @@ Edit metadata
     2. **Edit metadata in bulk**: Allows you to edit common metadata fields for large numbers of books simultaneously. It operates on all the books you have selected in the :ref:`Library view <search_sort>`.
     3. **Download metadata and covers**: Downloads metadata and covers (if available) for the books that are selected in the book list.
     4. **Merge book records**: Gives you the capability of merging the metadata and formats of two or more book records. You can choose to either delete or keep the records that were not clicked first.
+    5. **Manage data files**: Manage the extra data files associated with the selected books.
 
 For more details, see :ref:`metadata`.
 
@@ -270,8 +273,10 @@ Remove books
 
     6. **Remove matching books from device**: Allows you to remove e-book files from a connected device that match the books that are selected in the book list.
 
+    7. **Restore recently deleted**: Allows you to undo the removal of books or formats.
+
 .. note::
-    Note that when you use :guilabel:`Remove books` to delete books from your calibre library, the book record is permanently deleted, but the files are placed into the :guilabel:`Recycle Bin/Trash`. This allows you to recover the files if you change your mind.
+    Note that when you use :guilabel:`Remove books` to delete books from your calibre library, the book record is deleted, but the books are temporarily stored, for a few days, in a trash folder. You can undo the delete by right clicking the :guilabel:`Remove books` button and choosing to :guilabel:`Restore recently deleted` books.
 
 .. _configuration:
 
@@ -378,7 +383,7 @@ You can set only one of the search options `Case sensitive searching` and `Unacc
 Equality searches are indicated by prefixing the search string with an equals sign (=). For example, the query
 ``tag:"=science"`` will match `science`, but not `science fiction` or `hard science`. Character variants are significant: `é` doesn't match `e`.
 
-Two variants of equality searches are used for hierarchical items (e.g., A.B.C): hierarchical prefix searches and hierarchical component searches. The first, indicated by a single period after the equals (``=.``) matches the initial parts of a hierarchical item. The second, indicated by two periods after the the equals (``=..``) matches an internal name in the hierarchical item. Examples, using the tag ``History.Military.WWII`` as the value:
+Two variants of equality searches are used for hierarchical items (e.g., A.B.C): hierarchical prefix searches and hierarchical component searches. The first, indicated by a single period after the equals (``=.``) matches the initial parts of a hierarchical item. The second, indicated by two periods after the equals (``=..``) matches an internal name in the hierarchical item. Examples, using the tag ``History.Military.WWII`` as the value:
 
   * ``tags:"=.History"`` : True. ``History`` is a prefix of the tag.
   * ``tags:"=.History.Military"`` : True. ``History.Military`` is a prefix of the tag.
@@ -495,11 +500,11 @@ search. More about saving searches below.
 
 *Virtual libraries*
 
-The special field ``vl`` is used to search for books in a virtual library. For
-example, ``vl:Read`` will find all the books in the *Read* virtual library. The search
+The special field ``vl`` is used to search for books in a Virtual library. For
+example, ``vl:Read`` will find all the books in the *Read* Virtual library. The search
 ``vl:Read and vl:"Science Fiction"`` will find all the books that are in both the *Read* and
 *Science Fiction* virtual libraries. The value following ``vl:`` must be the name of a
-virtual library. If the virtual library name contains spaces then surround it with quotes.
+Virtual library. If the Virtual library name contains spaces then surround it with quotes.
 
 *Whether a field has a value*
 
@@ -617,7 +622,7 @@ learn how to create and use Virtual libraries, see the tutorial:
 Temporarily marking books
 ----------------------------
 
-You can temporarily mark arbitrary sets of books. Marked books will have a pin on them and can be found with the search ``marked:true``. To mark a book press :kbd:`Ctrl+m` or go to :guilabel:`Preferences->Toolbars & menus` and add the :guilabel:`Mark books` button to the main toolbar.
+You can temporarily mark arbitrary sets of books. Marked books will have a pin on them and can be found with the search ``marked:true``. To mark a book press :kbd:`Ctrl+M` or go to :guilabel:`Preferences->Toolbars & menus` and add the :guilabel:`Mark books` button to the main toolbar.
 
 You can mark books with a specific text label by right clicking the :guilabel:`Mark books` button and choosing :guilabel:`Mark books with text label`. Books marked with text labels can later be found using the search ``marked:"=the-text-you-entered"``.
 
@@ -751,6 +756,31 @@ corner of the main window. In :guilabel:`Preferences->Interface->Look & feel->Co
 browser` you can change the number of covers displayed, and even have the
 :guilabel:`Cover browser` display itself in a separate popup window.
 
+Adding notes for authors, series, etc.
+------------------------------------------
+
+.. image:: images/notes.png
+   :class: float-left-img
+
+You can add notes for an author/series/tag/publisher/etc. to your calibre
+library. To do so right click on the author name in the :guilabel:`Tag browser` on the left
+or the :guilabel:`Book details` panel on the right and choose :guilabel:`Create note`
+or :guilabel:`Edit note`.
+
+A simple popup window will allow you to enter your notes using basic
+formatting and supporting links and images. Once a note for an author is
+created, it can be viewed easily from the :guilabel:`Book details` panel by
+clicking the little pencil icon next to the author name.
+
+You can search through all the notes in your library using the
+:guilabel:`Browse notes` tool by pressing :kbd:`Ctrl+Shift+N` or adding
+it to the toolbar via :guilabel:`Preferences->Toolbars & menus`.
+
+.. raw:: html epub
+
+    <div style="clear:both"></div>
+
+
 Quickview
 ----------
 
@@ -806,7 +836,7 @@ The Jobs panel shows the number of currently running jobs. Jobs are tasks that r
 Keyboard shortcuts
 ---------------------
 
-calibre has several keyboard shortcuts to save you time and mouse movement. These shortcuts are active in the book list view (when you're not editing the details of a particular book), and most of them affect the title you have selected. The calibre E-book viewer has its own shortcuts which can be customised by clicking the :guilabel:`Preferences` button in the viewer.
+calibre has several keyboard shortcuts to save you time and mouse movement. These shortcuts are active in the book list view (when you're not editing the details of a particular book), and most of them affect the title you have selected. The calibre E-book viewer :ref:`has its own shortcuts <viewer_shortcuts>` which can be customised in the viewer :guilabel:`Preferences`.
 
 .. note::
 
@@ -925,3 +955,9 @@ calibre has several keyboard shortcuts to save you time and mouse movement. Thes
     * - :kbd:`Ctrl+Alt+Shift+F`
       - Restrict the displayed books to only those books that are in a category
         currently displayed in the :guilabel:`Tag browser`
+    * - :kbd:`B`
+      - Browse annotations (highlights and bookmarks) made in the calibre viewer for all books in the library
+    * - :kbd:`Ctrl+Shift+N`
+      - Browse notes associated with authors/series/tags/etc.
+    * - :kbd:`Alt+Shift+L`
+      - Toggle the layout between wide and narrow views

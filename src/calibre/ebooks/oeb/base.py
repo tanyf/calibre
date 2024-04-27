@@ -13,26 +13,26 @@ import re
 import sys
 from collections import defaultdict
 from itertools import count
-from lxml import etree, html
 from operator import attrgetter
+from typing import Optional
+
+from lxml import etree, html
 
 from calibre import as_unicode, force_unicode, get_types_map, isbytestring
 from calibre.constants import __version__, filesystem_encoding
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.ebooks.conversion.preprocess import CSSPreProcessor
-from calibre.ebooks.oeb.parse_utils import (
-    XHTML, XHTML_NS, NotHTML, barename, namespace, parse_html,
-)
+from calibre.ebooks.oeb.parse_utils import XHTML, XHTML_NS, NotHTML, barename, namespace, parse_html
 from calibre.translations.dynamic import translate
 from calibre.utils.cleantext import clean_xml_chars
-from calibre.utils.icu import numeric_sort_key, title_case as icu_title
+from calibre.utils.icu import numeric_sort_key
+from calibre.utils.icu import title_case as icu_title
 from calibre.utils.localization import __
 from calibre.utils.short_uuid import uuid4
 from calibre.utils.xml_parse import safe_xml_fromstring
 from polyglot.builtins import codepoint_to_chr, iteritems, itervalues, string_or_bytes
-from polyglot.urllib import (
-    unquote as urlunquote, urldefrag, urljoin, urlparse, urlunparse,
-)
+from polyglot.urllib import unquote as urlunquote
+from polyglot.urllib import urldefrag, urljoin, urlparse, urlunparse
 
 XML_NS       = 'http://www.w3.org/XML/1998/namespace'
 OEB_DOC_NS   = 'http://openebook.org/namespaces/oeb-document/1.0/'
@@ -53,13 +53,14 @@ RE_NS        = 'http://exslt.org/regular-expressions'
 MBP_NS       = 'http://www.mobipocket.com'
 EPUB_NS      = 'http://www.idpf.org/2007/ops'
 MATHML_NS    = 'http://www.w3.org/1998/Math/MathML'
+SMIL_NS      = 'http://www.w3.org/ns/SMIL'
 
 XPNSMAP      = {
-        'h': XHTML_NS, 'o1': OPF1_NS, 'o2': OPF2_NS, 'd09': DC09_NS,
-        'd10': DC10_NS, 'd11': DC11_NS, 'xsi': XSI_NS, 'dt': DCTERMS_NS,
-        'ncx': NCX_NS, 'svg': SVG_NS, 'xl': XLINK_NS, 're': RE_NS,
-        'mathml': MATHML_NS, 'mbp': MBP_NS, 'calibre': CALIBRE_NS,
-        'epub':EPUB_NS
+    'h': XHTML_NS, 'o1': OPF1_NS, 'o2': OPF2_NS, 'd09': DC09_NS,
+    'd10': DC10_NS, 'd11': DC11_NS, 'xsi': XSI_NS, 'dt': DCTERMS_NS,
+    'ncx': NCX_NS, 'svg': SVG_NS, 'xl': XLINK_NS, 're': RE_NS,
+    'mathml': MATHML_NS, 'mbp': MBP_NS, 'calibre': CALIBRE_NS,
+    'epub':EPUB_NS, 'smil': SMIL_NS,
 }
 
 OPF1_NSMAP   = {'dc': DC11_NS, 'oebpackage': OPF1_NS}
@@ -97,6 +98,14 @@ def SVG(name):
 
 def XLINK(name):
     return f'{{{XLINK_NS}}}{name}'
+
+
+def SMIL(name):
+    return f'{{{SMIL_NS}}}{name}'
+
+
+def EPUB(name):
+    return f'{{{EPUB_NS}}}{name}'
 
 
 def CALIBRE(name):
@@ -166,7 +175,7 @@ def itercsslinks(raw):
         yield match.group(1), match.start(1)
 
 
-_link_attrs = set(html.defs.link_attrs) | {XLINK('href'), 'poster'}
+_link_attrs = set(html.defs.link_attrs) | {XLINK('href'), 'poster', 'altimg'}
 
 
 def iterlinks(root, find_links_in_css=True):
@@ -294,7 +303,7 @@ def rewrite_links(root, link_repl_func, resolve_base_href=False):
         except UnicodeDecodeError:
             continue
 
-        if tag == XHTML('style') and el.text and \
+        if tag in (XHTML('style'), SVG('style')) and el.text and \
                 (_css_url_re.search(el.text) is not None or '@import' in
                         el.text):
             stylesheet = parser.parseString(el.text, validate=False)
@@ -1018,6 +1027,12 @@ class Manifest:
         # }}}
 
         @property
+        def data_as_bytes_or_none(self) -> Optional[bytes]:
+            if self._loader is None:
+                return None
+            return self._loader(getattr(self, 'html_input_href', self.href))
+
+        @property
         def data(self):
             """Provides MIME type sensitive access to the manifest
             entry's associated content.
@@ -1033,10 +1048,7 @@ class Manifest:
             """
             data = self._data
             if data is None:
-                if self._loader is None:
-                    return None
-                data = self._loader(getattr(self, 'html_input_href',
-                    self.href))
+                data = self.data_as_bytes_or_none
             try:
                 mt = self.media_type.lower()
             except Exception:

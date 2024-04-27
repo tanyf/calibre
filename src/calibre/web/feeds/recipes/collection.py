@@ -9,19 +9,19 @@ import calendar
 import os
 import zipfile
 from datetime import timedelta
+from threading import RLock
+
 from lxml import etree
 from lxml.builder import ElementMaker
-from threading import RLock
 
 from calibre import force_unicode
 from calibre.constants import numeric_version
-from calibre.utils.date import (
-    EPOCH, UNDEFINED_DATE, isoformat, local_tz, now as nowf, utcnow,
-)
+from calibre.utils.date import EPOCH, UNDEFINED_DATE, isoformat, local_tz, utcnow
+from calibre.utils.date import now as nowf
 from calibre.utils.iso8601 import parse_iso8601
-from calibre.utils.resources import get_path as P
 from calibre.utils.localization import _
 from calibre.utils.recycle_bin import delete_file
+from calibre.utils.resources import get_path as P
 from calibre.utils.xml_parse import safe_xml_fromstring
 from polyglot.builtins import iteritems
 
@@ -43,14 +43,24 @@ def iterate_over_builtin_recipe_files():
         yield rid, f
 
 
+def normalize_language(x: str) -> str:
+    lang, sep, country = x.replace('-', '_').partition('_')
+    if sep == '_':
+        x = f'{lang.lower()}{sep}{country.upper()}'
+    else:
+        x = lang.lower()
+    return x
+
+
 def serialize_recipe(urn, recipe_class):
     from xml.sax.saxutils import quoteattr
 
-    def attr(n, d):
+
+    def attr(n, d, normalize=lambda x: x):
         ans = getattr(recipe_class, n, d)
         if isinstance(ans, bytes):
             ans = ans.decode('utf-8', 'replace')
-        return quoteattr(ans)
+        return quoteattr(normalize(ans))
 
     default_author = _('You') if urn.startswith('custom:') else _('Unknown')
     ns = getattr(recipe_class, 'needs_subscription', False)
@@ -63,7 +73,7 @@ def serialize_recipe(urn, recipe_class):
         'id'                 : quoteattr(str(urn)),
         'title'              : attr('title', _('Unknown')),
         'author'             : attr('__author__', default_author),
-        'language'           : attr('language', 'und'),
+        'language'           : attr('language', 'und', normalize_language),
         'needs_subscription' : quoteattr(ns),
         'description'        : attr('description', '')
         })
@@ -86,7 +96,7 @@ def serialize_collection(mapping_of_recipe_classes):
     return f'''<?xml version='1.0' encoding='utf-8'?>
 <recipe_collection xmlns="http://calibre-ebook.com/recipe_collection" count="{len(collection)}">
 {items}
-</recipe_collection>'''.encode('utf-8')
+</recipe_collection>'''.encode()
 
 
 def serialize_builtin_recipes():

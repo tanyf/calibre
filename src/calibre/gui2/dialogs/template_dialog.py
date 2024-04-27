@@ -11,28 +11,46 @@ import re
 import sys
 import traceback
 from functools import partial
+
 from qt.core import (
-    QAbstractItemView, QApplication, QColor, QComboBox, QCursor, QDialog,
-    QDialogButtonBox, QFont, QFontDatabase, QFontInfo, QFontMetrics, QIcon, QLineEdit,
-    QPalette, QSize, QSyntaxHighlighter, Qt, QTableWidget, QTableWidgetItem,
-    QTextCharFormat, QTextOption, QVBoxLayout, pyqtSignal,
+    QAbstractItemView,
+    QApplication,
+    QColor,
+    QComboBox,
+    QCursor,
+    QDialog,
+    QDialogButtonBox,
+    QFont,
+    QFontDatabase,
+    QFontInfo,
+    QFontMetrics,
+    QIcon,
+    QLineEdit,
+    QPalette,
+    QSize,
+    QSyntaxHighlighter,
+    Qt,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextCharFormat,
+    QTextOption,
+    QVBoxLayout,
+    pyqtSignal,
 )
 
 from calibre import sanitize_file_name
 from calibre.constants import config_dir
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.ebooks.metadata.book.formatter import SafeFormat
-from calibre.gui2 import (
-    choose_files, choose_save_file, error_dialog, gprefs, pixmap_to_data,
-    question_dialog,
-)
+from calibre.gui2 import choose_files, choose_save_file, error_dialog, gprefs, pixmap_to_data, question_dialog
 from calibre.gui2.dialogs.template_dialog_ui import Ui_TemplateDialog
 from calibre.library.coloring import color_row_key, displayable_columns
 from calibre.utils.config_base import tweaks
 from calibre.utils.date import DEFAULT_DATE
 from calibre.utils.formatter import PythonTemplateContext, StopException
 from calibre.utils.formatter_functions import StoredObjectType, formatter_functions
-from calibre.utils.icu import lower as icu_lower, sort_key
+from calibre.utils.icu import lower as icu_lower
+from calibre.utils.icu import sort_key
 from calibre.utils.localization import localize_user_manual_link, ngettext
 from calibre.utils.resources import get_path as P
 
@@ -339,7 +357,7 @@ class TemplateDialog(QDialog, Ui_TemplateDialog):
             QDialog.__init__(self, parent, flags=Qt.WindowType.Dialog)
         else:
             QDialog.__init__(self, None, flags=Qt.WindowType.Window)
-            self.raise_()  # Not needed on windows but here just in case
+            self.raise_and_focus()  # Not needed on windows but here just in case
         Ui_TemplateDialog.__init__(self)
         self.setupUi(self)
         self.setWindowIcon(self.windowIcon())
@@ -519,7 +537,7 @@ class TemplateDialog(QDialog, Ui_TemplateDialog):
         '''
         self.fm = fm
         if mi:
-            if not isinstance(mi, list):
+            if not isinstance(mi, (tuple, list)):
                 mi = (mi, )
         else:
             mi = Metadata(_('Title'), [_('Author')])
@@ -548,7 +566,7 @@ class TemplateDialog(QDialog, Ui_TemplateDialog):
                 elif fm[col]['datatype'] == 'bool':
                     mi.set(col, False)
                 elif fm[col]['is_multiple']:
-                    mi.set(col, (col,))
+                    mi.set(col, [col])
                 else:
                     mi.set(col, col, 1)
             mi = (mi, )
@@ -618,17 +636,17 @@ class TemplateDialog(QDialog, Ui_TemplateDialog):
     def add_python_template_header_text(self):
         self.textbox.setPlainText('''python:
 def evaluate(book, context):
-    # book is a calibre metadata object
-    # context is an instance of calibre.utils.formatter.PythonTemplateContext,
-    # which currently contains the following attributes:
-    # db: a calibre legacy database object.
-    # globals: the template global variable dictionary.
-    # arguments: is a list of arguments if the template is called by a GPM template, otherwise None.
-    # funcs: used to call Built-in/User functions and Stored GPM/Python templates.
-    # Example: context.funcs.list_re_group()
+\t# book is a calibre metadata object
+\t# context is an instance of calibre.utils.formatter.PythonTemplateContext,
+\t# which currently contains the following attributes:
+\t# db: a calibre legacy database object.
+\t# globals: the template global variable dictionary.
+\t# arguments: is a list of arguments if the template is called by a GPM template, otherwise None.
+\t# funcs: used to call Built-in/User functions and Stored GPM/Python templates.
+\t# Example: context.funcs.list_re_group()
 
-    # your Python code goes here
-    return 'a string'
+\t# your Python code goes here
+\treturn 'a string'
 ''')
 
     def set_word_wrap(self, to_what):

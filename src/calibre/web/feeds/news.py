@@ -16,10 +16,7 @@ from collections import defaultdict
 from contextlib import closing
 from urllib.parse import urlparse, urlsplit
 
-from calibre import (
-    __appname__, as_unicode, browser, force_unicode, iswindows, preferred_encoding,
-    random_user_agent, strftime,
-)
+from calibre import __appname__, as_unicode, browser, force_unicode, iswindows, preferred_encoding, random_user_agent, strftime
 from calibre.ebooks.BeautifulSoup import BeautifulSoup, CData, NavigableString, Tag
 from calibre.ebooks.metadata import MetaInformation
 from calibre.ebooks.metadata.opf2 import OPFCreator
@@ -33,9 +30,8 @@ from calibre.utils.logging import ThreadSafeWrapper
 from calibre.utils.threadpool import NoResultsPending, ThreadPool, WorkRequest
 from calibre.web import Recipe
 from calibre.web.feeds import Feed, feed_from_xml, feeds_from_index, templates
-from calibre.web.fetch.simple import (
-    AbortArticle, RecursiveFetcher, option_parser as web2disk_option_parser,
-)
+from calibre.web.fetch.simple import AbortArticle, RecursiveFetcher
+from calibre.web.fetch.simple import option_parser as web2disk_option_parser
 from calibre.web.fetch.utils import prepare_masthead_image
 from polyglot.builtins import string_or_bytes
 
@@ -103,8 +99,9 @@ class BasicNewsRecipe(Recipe):
     #: Number of levels of links to follow on article webpages
     recursions             = 0
 
-    #: Delay between consecutive downloads in seconds. The argument may be a
-    #: floating point number to indicate a more precise time.
+    #: The default delay between consecutive downloads in seconds. The argument may be a
+    #: floating point number to indicate a more precise time. See :meth:`get_url_specific_delay`
+    #: to implement per URL delays.
     delay                  = 0
 
     #: Publication type
@@ -335,7 +332,7 @@ class BasicNewsRecipe(Recipe):
     '''
 
     #: By default, calibre will use a default image for the masthead (Kindle only).
-    #: Override this in your recipe to provide a url to use as a masthead.
+    #: Override this in your recipe to provide a URL to use as a masthead.
     masthead_url = None
 
     #: By default, the cover image returned by get_cover_url() will be used as
@@ -473,6 +470,16 @@ class BasicNewsRecipe(Recipe):
         if self.test:
             return self.feeds[:self.test[0]]
         return self.feeds
+
+    def get_url_specific_delay(self, url):
+        '''
+        Return the delay in seconds before downloading this URL. If you want to programmatically
+        determine the delay for the specified URL, override this method in your subclass, returning
+        self.delay by default for URLs you do not want to affect.
+
+        :return: A floating point number, the delay in seconds.
+        '''
+        return self.delay
 
     @classmethod
     def print_version(cls, url):
@@ -789,7 +796,7 @@ class BasicNewsRecipe(Recipe):
         `weights`: A dictionary that maps weights to titles. If any titles
         in index are not in weights, they are assumed to have a weight of 0.
         '''
-        weights = defaultdict(lambda: 0, weights)
+        weights = defaultdict(int, weights)
         index.sort(key=lambda x: weights[x])
         return index
 
@@ -841,6 +848,11 @@ class BasicNewsRecipe(Recipe):
         every article URL. It should return the path to a file on the filesystem
         that contains the article HTML. That file is processed by the recursive
         HTML fetching engine, so it can contain links to pages/images on the web.
+        Alternately, you can return a dictionary of the form:
+        {'data': <HTML data>, 'url': <the resolved URL of the article>}. This avoids
+        needing to create temporary files. The `url` key in the dictionary is useful if
+        the effective URL of the article is different from the URL passed into this method,
+        for example, because of redirects. It can be omitted if the URL is unchanged.
 
         This method is typically useful for sites that try to make it difficult to
         access article content automatically.
@@ -966,6 +978,7 @@ class BasicNewsRecipe(Recipe):
         self.web2disk_options.preprocess_image = self.preprocess_image
         self.web2disk_options.encoding = self.encoding
         self.web2disk_options.preprocess_raw_html = self.preprocess_raw_html_
+        self.web2disk_options.get_delay = self.get_url_specific_delay
 
         if self.delay > 0:
             self.simultaneous_downloads = 1
@@ -1015,7 +1028,7 @@ class BasicNewsRecipe(Recipe):
         for attr in self.remove_attributes:
             for x in soup.findAll(attrs={attr:True}):
                 del x[attr]
-        for bad_tag in list(soup.findAll(['base', 'iframe', 'canvas', 'embed',
+        for bad_tag in list(soup.findAll(['base', 'iframe', 'canvas', 'embed', 'button',
             'command', 'datalist', 'video', 'audio', 'noscript', 'link', 'meta'])):
             # link tags can be used for preloading causing network activity in
             # calibre viewer. meta tags can do all sorts of crazy things,
@@ -1131,7 +1144,7 @@ class BasicNewsRecipe(Recipe):
                 if bn:
                     bn = bn.rpartition('/')[-1]
                     if bn:
-                        img = os.path.join(imgdir, 'feed_image_%d%s'%(self.image_counter, os.path.splitext(bn)))
+                        img = os.path.join(imgdir, 'feed_image_%d%s'%(self.image_counter, os.path.splitext(bn)[-1]))
                         try:
                             with open(img, 'wb') as fi, closing(self.browser.open(feed.image_url, timeout=self.timeout)) as r:
                                 fi.write(r.read())
@@ -1151,7 +1164,7 @@ class BasicNewsRecipe(Recipe):
         return templ.generate(f, feeds, self.description_limiter,
                               extra_css=css).render(doctype='xhtml')
 
-    def _fetch_article(self, url, dir_, f, a, num_of_feeds):
+    def _fetch_article(self, url, dir_, f, a, num_of_feeds, preloaded=None):
         br = self.browser
         if hasattr(self.get_browser, 'is_base_class_implementation'):
             # We are using the default get_browser, which means no need to
@@ -1168,6 +1181,8 @@ class BasicNewsRecipe(Recipe):
         fetcher.current_dir = dir_
         fetcher.show_progress = False
         fetcher.image_url_processor = self.image_url_processor
+        if preloaded is not None:
+            fetcher.preloaded_urls[url] = preloaded
         res, path, failures = fetcher.start_fetch(url), fetcher.downloaded_paths, fetcher.failed_links
         if not res or not os.path.exists(res):
             msg = _('Could not fetch article.') + ' '
@@ -1183,9 +1198,17 @@ class BasicNewsRecipe(Recipe):
         return self._fetch_article(url, dir, f, a, num_of_feeds)
 
     def fetch_obfuscated_article(self, url, dir, f, a, num_of_feeds):
-        path = os.path.abspath(self.get_obfuscated_article(url))
-        url = ('file:'+path) if iswindows else ('file://'+path)
-        return self._fetch_article(url, dir, f, a, num_of_feeds)
+        x = self.get_obfuscated_article(url)
+        if isinstance(x, dict):
+            data = x['data']
+            if isinstance(data, str):
+                data = data.encode(self.encoding or 'utf-8')
+            url = x.get('url', url)
+        else:
+            with open(x, 'rb') as of:
+                data = of.read()
+            os.remove(x)
+        return self._fetch_article(url, dir, f, a, num_of_feeds, preloaded=data)
 
     def fetch_embedded_article(self, article, dir, f, a, num_of_feeds):
         templ = templates.EmbeddedContent()
@@ -1711,8 +1734,9 @@ class BasicNewsRecipe(Recipe):
                 feed.description = as_unicode(err)
                 parsed_feeds.append(feed)
                 self.log.exception(msg)
-            if self.delay > 0:
-                time.sleep(self.delay)
+            delay = self.get_url_specific_delay(url)
+            if delay > 0:
+                time.sleep(delay)
 
         remove = [fl for fl in parsed_feeds if len(fl) == 0 and self.remove_empty_feeds]
         for f in remove:

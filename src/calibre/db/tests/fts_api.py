@@ -8,8 +8,8 @@ import shutil
 import sys
 import time
 from io import BytesIO, StringIO
-from zipfile import ZipFile
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from calibre.db.fts.text import html_to_text
 from calibre.db.tests.base import BaseTest
@@ -25,8 +25,8 @@ class FTSAPITest(BaseTest):
 
     def setUp(self):
         super().setUp()
-        from calibre_extensions.sqlite_extension import set_ui_language
         from calibre.db.cache import Cache
+        from calibre_extensions.sqlite_extension import set_ui_language
         self.orig_sleep_time = Cache.fts_indexing_sleep_time
         Cache.fts_indexing_sleep_time = 0
         set_ui_language('en')
@@ -35,8 +35,8 @@ class FTSAPITest(BaseTest):
     def tearDown(self):
         [c.close() for c in self.libraries_to_close]
         super().tearDown()
-        from calibre_extensions.sqlite_extension import set_ui_language
         from calibre.db.cache import Cache
+        from calibre_extensions.sqlite_extension import set_ui_language
         Cache.fts_indexing_sleep_time = self.orig_sleep_time
         set_ui_language('en')
 
@@ -102,7 +102,7 @@ class FTSAPITest(BaseTest):
 
         # check enabling scans pre-exisintg
         cache = self.new_library()
-        cache.add_format(1, 'TXTZ', self.make_txtz('a test te\u00adxt'.encode('utf-8')))
+        cache.add_format(1, 'TXTZ', self.make_txtz('a test te\u00adxt'.encode()))
         fts = cache.enable_fts()
         self.wait_for_fts_to_finish(fts)
         check(id=1, book=1, format='TXTZ', searchable_text='a test text')

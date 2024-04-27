@@ -8,11 +8,33 @@ import re
 import textwrap
 from bisect import bisect
 from functools import partial
+
 from qt.core import (
-    QAbstractItemModel, QAbstractItemView, QAbstractListModel, QApplication, QCheckBox,
-    QDialogButtonBox, QGridLayout, QHBoxLayout, QIcon, QInputMethodEvent, QLabel,
-    QListView, QMenu, QMimeData, QModelIndex, QPen, QPushButton, QSize, QSizePolicy,
-    QSplitter, QStyledItemDelegate, Qt, QToolButton, QTreeView, pyqtSignal,
+    QAbstractItemModel,
+    QAbstractItemView,
+    QAbstractListModel,
+    QApplication,
+    QCheckBox,
+    QDialogButtonBox,
+    QGridLayout,
+    QHBoxLayout,
+    QIcon,
+    QInputMethodEvent,
+    QLabel,
+    QListView,
+    QMenu,
+    QMimeData,
+    QModelIndex,
+    QPen,
+    QPushButton,
+    QSize,
+    QSizePolicy,
+    QSplitter,
+    QStyledItemDelegate,
+    Qt,
+    QToolButton,
+    QTreeView,
+    pyqtSignal,
 )
 
 from calibre.gui2.tweak_book import tprefs
@@ -810,7 +832,7 @@ class CharSelect(Dialog):
     def show(self):
         self.initialize()
         Dialog.show(self)
-        self.raise_()
+        self.raise_and_focus()
 
     def char_selected(self, c):
         if QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier:

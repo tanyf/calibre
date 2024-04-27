@@ -12,7 +12,7 @@ from itertools import count
 from queue import Empty, Queue
 from threading import Thread
 from time import monotonic
-from typing import NamedTuple, Tuple, Optional
+from typing import NamedTuple, Optional, Tuple
 
 from calibre.constants import DEBUG
 from calibre.utils.ipc.simple_worker import start_pipe_worker
@@ -401,7 +401,7 @@ class WinSpeech:
         if DEBUG:
             with suppress(Exception):
                 print('winspeech:\x1b[31m->\x1b[39m', cmd, flush=True)
-        w.stdin.write(f'{cmd}\n'.encode('utf-8'))
+        w.stdin.write(f'{cmd}\n'.encode())
         w.stdin.flush()
         return cmd_id
 

@@ -6,13 +6,13 @@ __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 import os
-from PIL import Image, ImageOps
 from io import BytesIO
 
-from calibre.ebooks.mobi import MAX_THUMB_DIMEN, MAX_THUMB_SIZE
-from calibre.ebooks.mobi.utils import (rescale_image, mobify_image,
-        write_font_record)
+from PIL import Image, ImageOps
+
 from calibre.ebooks import generate_masthead
+from calibre.ebooks.mobi import MAX_THUMB_DIMEN, MAX_THUMB_SIZE
+from calibre.ebooks.mobi.utils import mobify_image, rescale_image, write_font_record
 from calibre.ebooks.oeb.base import OEB_RASTER_IMAGES
 from calibre.ptempfile import PersistentTemporaryFile
 from calibre.utils.imghdr import what
@@ -27,9 +27,11 @@ def process_jpegs_for_amazon(data: bytes) -> bytes:
         # Amazon's MOBI renderer can't render JPEG images without JFIF metadata
         # and images with EXIF data dont get displayed on the cover screen
         changed = not img.info
-        if hasattr(img, '_getexif') and img._getexif():
-            changed = True
-            img = ImageOps.exif_transpose(img)
+        if hasattr(img, 'getexif'):
+            exif = img.getexif()
+            if exif.get(0x0112) in (2,3,4,5,6,7,8):
+                changed = True
+                img = ImageOps.exif_transpose(img)
         if changed:
             out = BytesIO()
             img.save(out, 'JPEG')

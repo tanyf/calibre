@@ -2,10 +2,10 @@ __license__ = 'GPL 3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
 
-import os, io
+import io
+import os
 
-from calibre.customize.conversion import (OutputFormatPlugin,
-        OptionRecommendation)
+from calibre.customize.conversion import OptionRecommendation, OutputFormatPlugin
 from calibre.ptempfile import TemporaryDirectory
 
 
@@ -61,7 +61,7 @@ class PMLOutput(OutputFormatPlugin):
                     im = Image.open(io.BytesIO(item.data))
                 else:
                     im = Image.open(io.BytesIO(item.data)).convert('P')
-                    im.thumbnail((300,300), Image.ANTIALIAS)
+                    im.thumbnail((300,300), Image.Resampling.LANCZOS)
 
                 data = io.BytesIO()
                 im.save(data, 'PNG')

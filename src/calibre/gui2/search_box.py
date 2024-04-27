@@ -5,20 +5,18 @@ __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import re, time
+import re
+import time
 from functools import partial
 
+from qt.core import QAction, QApplication, QComboBox, QCompleter, QDialog, QEvent, QIcon, QKeyEvent, QKeySequence, QLineEdit, Qt, QTimer, pyqtSignal, pyqtSlot
 
-from qt.core import (
-    QComboBox, Qt, QLineEdit, pyqtSlot, QDialog, QEvent,
-    pyqtSignal, QCompleter, QAction, QKeySequence, QTimer,
-    QIcon, QApplication, QKeyEvent)
-
-from calibre.gui2 import config, question_dialog, gprefs, QT_HIDDEN_CLEAR_ACTION
-from calibre.gui2.widgets import stylesheet_for_lineedit
+from calibre.gui2 import QT_HIDDEN_CLEAR_ACTION, config, gprefs, question_dialog
 from calibre.gui2.dialogs.saved_search_editor import SavedSearchEditor
 from calibre.gui2.dialogs.search import SearchDialog
+from calibre.gui2.widgets import stylesheet_for_lineedit
 from calibre.utils.icu import primary_sort_key
+from calibre.utils.localization import pgettext
 from polyglot.builtins import native_string_type, string_or_bytes
 
 
@@ -401,7 +399,7 @@ class SearchBoxMixin:  # {{{
         else:
             b.setIcon(QIcon.ic('highlight_only_off.png'))
             if gprefs['search_tool_bar_shows_text']:
-                b.setText(_('Highlight'))
+                b.setText(pgettext('mark books matching search result instead of filtering them', 'Highlight'))
                 b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             else:
                 b.setText(None)
@@ -454,6 +452,7 @@ class SavedSearchBoxMixin:  # {{{
         use_hierarchy = 'search' in db.new_api.pref('categories_using_hierarchy', [])
         submenus = {}
         for name in sorted(db.saved_search_names(), key=lambda x: primary_sort_key(x.strip())):
+            display_name = name.replace('&', '&&')
             current_menu = menu
             if use_hierarchy:
                 components = tuple(n.strip() for n in name.split('.'))
@@ -463,14 +462,16 @@ class SavedSearchBoxMixin:  # {{{
                 for i,c in enumerate(hierarchy, start=1):
                     hierarchical_prefix = '.'.join(hierarchy[:i])
                     if hierarchical_prefix not in submenus:
-                        current_menu = current_menu.addMenu(c)
+                        current_menu = current_menu.addMenu(c.replace('&', '&&'))
                         current_menu.setIcon(folder_icon)
                         submenus[hierarchical_prefix] = current_menu
                     else:
                         current_menu = submenus[hierarchical_prefix]
-                ac = add_action(current_menu, name, last, partial(self.search.set_search_string, 'search:"='+name+'"'))
+                ac = add_action(current_menu, display_name, last.replace('&', '&&'),
+                                partial(self.search.set_search_string, 'search:"='+name+'"'))
             else:
-                ac = add_action(current_menu, name, name, partial(self.search.set_search_string, 'search:"='+name+'"'))
+                ac = add_action(current_menu, display_name, display_name,
+                                partial(self.search.set_search_string, 'search:"='+name+'"'))
             if ac.icon().isNull():
                 ac.setIcon(search_icon)
 

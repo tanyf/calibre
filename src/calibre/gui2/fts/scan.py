@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2022, Kovid Goyal <kovid at kovidgoyal.net>
 
 import os
-from qt.core import (
-    QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QIcon, QLabel, QPushButton,
-    QRadioButton, QVBoxLayout, QWidget, pyqtSignal
-)
+
+from qt.core import QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QIcon, QLabel, QPushButton, QRadioButton, QVBoxLayout, QWidget, pyqtSignal
 
 from calibre.db.listeners import EventType
 from calibre.db.utils import IndexingProgress

@@ -4,9 +4,10 @@
 __license__ = 'GPL v3'
 __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import unittest, numbers
+import numbers
+import unittest
 
-from calibre.ebooks.epub.cfi.parse import parser, cfi_sort_key, decode_cfi
+from calibre.ebooks.epub.cfi.parse import cfi_sort_key, decode_cfi, parser
 from polyglot.builtins import iteritems
 
 
@@ -79,6 +80,7 @@ class Tests(unittest.TestCase):
             ('/1~0.01', o('~', 0.01), ''),
             ('/1~1.301', o('~', 1.301), ''),
             ('/1@23:34.1', o('@', (23, 34.1)), ''),
+            ('/1@23:34.10', o('@', (23, 34.1)), ''),
             ('/1~3@3.1:2.3', o('~', 3.0, '@', (3.1, 2.3)), ''),
             ('/1:0', o(':', 0), ''),
             ('/1:3', o(':', 3), ''),

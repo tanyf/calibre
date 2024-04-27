@@ -5,8 +5,10 @@ __license__   = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import weakref, traceback, sys
-from threading import Thread, Event
+import sys
+import traceback
+import weakref
+from threading import Event, Thread
 
 from calibre.ebooks.metadata.opf2 import metadata_to_opf
 
@@ -68,6 +70,7 @@ class MetadataBackup(Thread):
                 if self.stop_running.is_set() or self.db.is_closed:
                     return
                 traceback.print_exc()
+
         try:
             book_id = self.db.get_a_dirtied_book()
             if book_id is None:

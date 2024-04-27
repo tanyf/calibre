@@ -10,23 +10,22 @@ import sys
 import time
 import traceback
 import weakref
-from qt.core import (
-    QAction, QActionGroup, QCoreApplication, QDialog, QDialogButtonBox, QEventLoop,
-    QIcon, QMenu, QObject, QTimer, QVBoxLayout, pyqtSignal,
-)
 from threading import Event, Thread
 
-from calibre import (
-    as_unicode, force_unicode, preferred_encoding, prints, sanitize_file_name,
-)
+from qt.core import QAction, QActionGroup, QCoreApplication, QDialog, QDialogButtonBox, QEventLoop, QIcon, QMenu, QObject, QTimer, QVBoxLayout, pyqtSignal
+
+from calibre import as_unicode, force_unicode, preferred_encoding, prints, sanitize_file_name
 from calibre.constants import DEBUG
-from calibre.customize.ui import (
-    available_input_formats, available_output_formats, device_plugins,
-    disabled_device_plugins,
-)
+from calibre.customize.ui import available_input_formats, available_output_formats, device_plugins, disabled_device_plugins
 from calibre.devices.errors import (
-    BlacklistedDevice, FreeSpaceError, InitialConnectionError, OpenActionNeeded,
-    OpenFailed, OpenFeedback, UserFeedback, WrongDestinationError,
+    BlacklistedDevice,
+    FreeSpaceError,
+    InitialConnectionError,
+    OpenActionNeeded,
+    OpenFailed,
+    OpenFeedback,
+    UserFeedback,
+    WrongDestinationError,
 )
 from calibre.devices.folder_device.driver import FOLDER_DEVICE
 from calibre.devices.interface import DevicePlugin, currently_connected_device
@@ -34,15 +33,23 @@ from calibre.devices.scanner import DeviceScanner
 from calibre.ebooks.covers import cprefs, generate_cover, override_prefs, scale_cover
 from calibre.ebooks.metadata import authors_to_string
 from calibre.gui2 import (
-    Dispatcher, FunctionDispatcher, choose_dir, config, dynamic, error_dialog, gprefs,
-    info_dialog, question_dialog, show_restart_warning, warning_dialog,
+    Dispatcher,
+    FunctionDispatcher,
+    choose_dir,
+    config,
+    dynamic,
+    error_dialog,
+    gprefs,
+    info_dialog,
+    question_dialog,
+    show_restart_warning,
+    warning_dialog,
 )
 from calibre.gui2.dialogs.choose_format_device import ChooseFormatDeviceDialog
 from calibre.gui2.widgets import BusyCursor
 from calibre.library.save_to_disk import find_plugboard
-from calibre.ptempfile import (
-    PersistentTemporaryFile, force_unicode as filename_to_unicode,
-)
+from calibre.ptempfile import PersistentTemporaryFile
+from calibre.ptempfile import force_unicode as filename_to_unicode
 from calibre.startup import connect_lambda
 from calibre.utils.config import device_prefs, tweaks
 from calibre.utils.filenames import ascii_filename
@@ -195,6 +202,7 @@ class DeviceManager(Thread):  # {{{
         self.keep_going     = True
         self.job_manager    = job_manager
         self.reported_errors = set()
+        self.shown_open_popups = set()
         self.current_job    = None
         self.scanner        = DeviceScanner()
         self.connected_device = None
@@ -233,7 +241,8 @@ class DeviceManager(Thread):  # {{{
             opm = dev.get_open_popup_message()
             if opm is not None:
                 skip_key = f'do_not_show_device_open_popup_message_{dev.__class__.__name__}'
-                if not gprefs.get(skip_key, False):
+                if skip_key not in self.shown_open_popups and not gprefs.get(skip_key, False):
+                    self.shown_open_popups.add(skip_key)
                     self.open_feedback_msg(dev.get_gui_name(), convert_open_popup(opm, skip_key))
             try:
                 dev.reset(detected_device=detected_device,
@@ -1043,6 +1052,28 @@ class DeviceMixin:  # {{{
     def _sync_action_triggered(self, *args):
         m = getattr(self, '_sync_menu', None)
         if m is not None:
+            ids = self.library_view.get_selected_ids(as_set=True)
+            db = self.current_db.new_api
+            already_on_device = db.all_field_for('ondevice', ids, default_value='')
+            books_on_device = {book_id for book_id, val in already_on_device.items() if val}
+            if books_on_device:
+                if len(books_on_device) == 1:
+                    if not question_dialog(self, _('Book already on device'), _(
+                        'The book {} is already present on the device. Resending it might cause any'
+                            ' annotations/bookmarks on the device for this book to be lost. Are you sure?').format(
+                                db.field_for('title', tuple(books_on_device)[0])), skip_dialog_name='confirm-resend-existing-books'
+                    ):
+                        return
+                else:
+                    title_sorts = db.all_field_for('sort', books_on_device)
+                    titles = sorted(db.all_field_for('title', books_on_device).items(), key=lambda x: title_sorts[x[0]])
+                    details = '\n'.join(title for book_id, title in titles)
+                    if not question_dialog(self, _('Some books already on device'), _(
+                        'Some of the selected books are already on the device. Resending them might cause any annotations/bookmarks on the'
+                        ' device for these books to be lost. Click "Show details" to see the books already on the device. Are you sure?'),
+                                        skip_dialog_name='confirm-resend-existing-books', det_msg=details
+                    ):
+                        return
             m.trigger_default()
 
     def create_device_menu(self):

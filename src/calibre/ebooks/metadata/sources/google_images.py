@@ -9,7 +9,7 @@ __docformat__ = 'restructuredtext en'
 from collections import OrderedDict
 
 from calibre import random_user_agent
-from calibre.ebooks.metadata.sources.base import Source, Option
+from calibre.ebooks.metadata.sources.base import Option, Source
 
 
 def parse_html(raw):
@@ -46,7 +46,7 @@ def imgurl_from_id(raw, tbnid):
 class GoogleImages(Source):
 
     name = 'Google Images'
-    version = (1, 0, 3)
+    version = (1, 0, 5)
     minimum_calibre_version = (2, 80, 0)
     description = _('Downloads covers from a Google Image search. Useful to find larger/alternate covers.')
     capabilities = frozenset(['cover'])
@@ -105,8 +105,17 @@ class GoogleImages(Source):
         # URL scheme
         url = 'https://www.google.com/search?as_st=y&tbm=isch&{}&as_epq=&as_oq=&as_eq=&cr=&as_sitesearch=&safe=images&tbs={}iar:t,ift:jpg'.format(q, sz)
         log('Search URL: ' + url)
-        br.set_simple_cookie('CONSENT', 'YES+', '.google.com', path='/')
+        # See https://github.com/benbusby/whoogle-search/pull/1054 for cookies
+        br.set_simple_cookie('CONSENT', 'PENDING+987', '.google.com', path='/')
+        template = b'\x08\x01\x128\x08\x14\x12+boq_identityfrontenduiserver_20231107.05_p0\x1a\x05en-US \x03\x1a\x06\x08\x80\xf1\xca\xaa\x06'
+        from base64 import standard_b64encode
+        from datetime import date
+        template.replace(b'20231107', date.today().strftime('%Y%m%d').encode('ascii'))
+        br.set_simple_cookie('SOCS', standard_b64encode(template).decode('ascii').rstrip('='), '.google.com', path='/')
+        # br.set_debug_http(True)
         raw = clean_ascii_chars(br.open(url).read().decode('utf-8'))
+        # with open('/t/raw.html', 'w') as f:
+        #     f.write(raw)
         root = parse_html(raw)
         results = root.xpath('//div/@data-tbnid')  # could also use data-id
         # from calibre.utils.ipython import ipython
@@ -127,6 +136,7 @@ def test():
     except ImportError:
         from Queue import Queue
     from threading import Event
+
     from calibre.utils.logging import default_log
     p = GoogleImages(None)
     p.log = default_log
@@ -134,7 +144,6 @@ def test():
     p.download_cover(default_log, rq, Event(), title='The Heroes',
                      authors=('Joe Abercrombie',))
     print('Downloaded', rq.qsize(), 'covers')
-
 
 if __name__ == '__main__':
     test()

@@ -4,17 +4,17 @@ __docformat__ = 'restructuredtext en'
 
 from functools import partial
 
-from qt.core import (Qt, QTreeView, QSize, QMenu)
+from qt.core import QMenu, QSize, Qt, QTreeView
 
 from calibre.customize.ui import store_plugins
 from calibre.gui2.metadata.single_download import RichTextDelegate
-from calibre.gui2.store.config.chooser.models import Matches, Delegate
+from calibre.gui2.store.config.chooser.models import Delegate, Matches
 
 
 class ResultsView(QTreeView):
 
-    def __init__(self, *args):
-        QTreeView.__init__(self,*args)
+    def __init__(self, parent=None):
+        QTreeView.__init__(self,parent)
 
         self._model = Matches([p for p in store_plugins()])
         self.setModel(self._model)

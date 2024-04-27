@@ -4,6 +4,7 @@
 import copy
 import json
 import traceback
+
 from qt.core import QDialog, QDialogButtonBox
 
 from calibre.gui2 import error_dialog, gprefs, question_dialog, warning_dialog
@@ -12,8 +13,12 @@ from calibre.gui2.preferences import AbortInitialize, ConfigWidgetBase, test_wid
 from calibre.gui2.preferences.template_functions_ui import Ui_Form
 from calibre.gui2.widgets import PythonHighlighter
 from calibre.utils.formatter_functions import (
-    StoredObjectType, compile_user_function, compile_user_template_functions,
-    formatter_functions, function_object_type, function_pref_name,
+    StoredObjectType,
+    compile_user_function,
+    compile_user_template_functions,
+    formatter_functions,
+    function_object_type,
+    function_pref_name,
     load_user_template_functions,
 )
 from calibre.utils.resources import get_path as P
@@ -88,14 +93,15 @@ class ConfigWidget(ConfigWidgetBase, Ui_Form):
         in template processing. You use a stored template in another template as
         if it were a template function, for example 'some_name(arg1, arg2...)'.</p>
 
-        <p>Stored templates must use either General Program Mode -- they must
-        either begin with the text '{0}' or be {1}. You retrieve arguments
-        passed to a GPM stored template using the '{2}()' template function, as
-        in '{2}(var1, var2, ...)'. The passed arguments are copied to the named
-        variables. Arguments passed to a Python template are in the '{2}'
-        parameter. Arguments are always strings.</p>
+        <p>Stored templates must use General Program Mode or Python Template
+        Mode -- they must begin with the text '{0}' or '{1}'. You retrieve
+        arguments passed to a GPM stored template using the '{2}()' template
+        function, as in '{2}(var1, var2, ...)'. The passed arguments are copied
+        to the named variables. Arguments passed to a Python template are in the
+        '{2}' attribute (a list) of the '{3}' parameter. Arguments are always
+        strings.</p>
 
-        <p>For example, this stored template checks if any items are in a
+        <p>For example, this stored GPM template checks if any items are in a
         list, returning '1' if any are found and '' if not.</p>
         <p>
         Template name: items_in_list<br>
@@ -115,7 +121,7 @@ class ConfigWidget(ConfigWidgetBase, Ui_Form):
         See the template language tutorial for more information.</p>
         </p>
         ''')
-        self.st_textBrowser.setHtml(help_text.format('program:', 'python templates', 'arguments'))
+        self.st_textBrowser.setHtml(help_text.format('program:', 'python:', 'arguments', 'context'))
         self.st_textBrowser.adjustSize()
         self.st_show_hide_help_button.clicked.connect(self.st_show_hide_help)
         self.st_textBrowser_height = self.st_textBrowser.height()
@@ -302,7 +308,7 @@ class ConfigWidget(ConfigWidgetBase, Ui_Form):
             return True
         if self.argument_count.value() == 0:
             if not question_dialog(self.gui, _('Template functions'),
-                         _('Setting argument count to to zero means that this '
+                         _('Setting argument count to zero means that this '
                            'function cannot be used in single function mode. '
                            'Is this OK?'),
                          det_msg='',

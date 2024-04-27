@@ -8,16 +8,14 @@ __docformat__ = 'restructuredtext en'
 import os
 from collections import defaultdict
 from functools import partial
+
 from qt.core import QApplication, QDialog, QPixmap, QTimer
 
 from calibre import as_unicode, guess_type, prepare_string_for_xml
 from calibre.constants import iswindows
 from calibre.ebooks import BOOK_EXTENSIONS
 from calibre.ebooks.metadata import MetaInformation, normalize_isbn
-from calibre.gui2 import (
-    choose_dir, choose_files, choose_files_and_remember_all_files, error_dialog, gprefs,
-    info_dialog, question_dialog, warning_dialog,
-)
+from calibre.gui2 import choose_dir, choose_files, choose_files_and_remember_all_files, error_dialog, gprefs, info_dialog, question_dialog, warning_dialog
 from calibre.gui2.actions import InterfaceAction
 from calibre.gui2.dialogs.add_empty_book import AddEmptyBookDialog
 from calibre.gui2.dialogs.confirm_delete import confirm
@@ -31,7 +29,7 @@ from polyglot.builtins import iteritems, string_or_bytes
 
 
 def get_filters():
-    archives = ['zip', 'rar']
+    archives = ['zip', 'rar', '7z']
     return [
             (_('Books'), [x for x in BOOK_EXTENSIONS if x not in archives]),
             (_('EPUB books'), ['epub', 'kepub']),
@@ -40,7 +38,7 @@ def get_filters():
             (_('HTML books'), ['htm', 'html', 'xhtm', 'xhtml']),
             (_('LIT books'), ['lit']),
             (_('Text books'), ['txt', 'text', 'rtf', 'md', 'markdown', 'textile', 'txtz']),
-            (_('Comics'), ['cbz', 'cbr', 'cbc']),
+            (_('Comics'), ['cbz', 'cbr', 'cbc', 'cb7']),
             (_('Archives'), archives),
             (_('Wordprocessor files'), ['odt', 'doc', 'docx']),
     ]
@@ -61,7 +59,7 @@ class AddAction(InterfaceAction):
         self.add_menu = self.qaction.menu()
         ma = partial(self.create_menu_action, self.add_menu)
         ma('recursive-add', _('Add from folders and sub-folders'), icon='mimetypes/dir.png').triggered.connect(self.add_recursive_question)
-        ma('archive-add-book', _('Add multiple books from archive (ZIP/RAR)'), icon='mimetypes/zip.png').triggered.connect(self.add_from_archive)
+        ma('archive-add-book', _('Add multiple books from archive (ZIP/RAR/7z)'), icon='mimetypes/zip.png').triggered.connect(self.add_from_archive)
         self.add_menu.addSeparator()
         ma('add-empty', _('Add empty book (Book entry with no formats)'),
                 shortcut='Shift+Ctrl+E').triggered.connect(self.add_empty)
@@ -71,6 +69,8 @@ class AddAction(InterfaceAction):
                 triggered=self.add_formats, shortcut='Shift+A')
         ma('add-formats-clipboard', _('Add files to selected book records from clipboard'),
                 triggered=self.add_formats_from_clipboard, shortcut='Shift+Alt+A', icon='edit-paste.png')
+        ma('add-extra-files-to-books', _(
+            'Add data files to selected book records')).triggered.connect(self.add_extra_files)
         ma('add-empty-format-to-books', _(
             'Add an empty file to selected book records')).triggered.connect(self.add_empty_format_choose)
         self.add_menu.addSeparator()
@@ -144,6 +144,20 @@ class AddAction(InterfaceAction):
                 _('Select book files'), filters=get_filters())
         if books:
             self._add_formats(books, ids)
+
+    def add_extra_files(self):
+        ids = self._check_add_formats_ok()
+        if not ids:
+            return
+        books = choose_files_and_remember_all_files(self.gui, 'add extra data files dialog dir',
+                _('Select extra data files'), filters=get_filters())
+        if books:
+            rmap = {'data/' + os.path.basename(x): x for x in books}
+            db = self.gui.current_db.new_api
+            for book_id in ids:
+                db.add_extra_files(book_id, rmap)
+            self.gui.library_view.model().refresh_ids(ids,
+                                  current_row=self.gui.library_view.currentIndex().row())
 
     def _add_formats(self, paths, ids):
         if len(ids) > 1 and not question_dialog(
@@ -257,7 +271,7 @@ class AddAction(InterfaceAction):
     def add_archive(self, single):
         paths = choose_files(
             self.gui, 'recursive-archive-add', _('Choose archive file'),
-            filters=[(_('Archives'), ('zip', 'rar'))], all_files=False, select_only_single_file=False)
+            filters=[(_('Archives'), ('zip', 'rar', '7z'))], all_files=False, select_only_single_file=False)
         if paths:
             self.do_add_recursive(paths, single, list_of_archives=True)
 
@@ -266,7 +280,7 @@ class AddAction(InterfaceAction):
             'Will the archive have a single book per internal folder?'))
         paths = choose_files(
             self.gui, 'recursive-archive-add', _('Choose archive file'),
-            filters=[(_('Archives'), ('zip', 'rar'))], all_files=False, select_only_single_file=False)
+            filters=[(_('Archives'), ('zip', 'rar', '7z'))], all_files=False, select_only_single_file=False)
         if paths:
             self.do_add_recursive(paths, single, list_of_archives=True)
 

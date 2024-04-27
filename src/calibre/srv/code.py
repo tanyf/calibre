@@ -7,7 +7,8 @@ import random
 import shutil
 import sys
 import zipfile
-from json import load as load_json_file, loads as json_loads
+from json import load as load_json_file
+from json import loads as json_loads
 from threading import Lock
 
 from calibre import as_unicode
@@ -15,20 +16,14 @@ from calibre.constants import in_develop_mode
 from calibre.customize.ui import available_input_formats
 from calibre.db.view import sanitize_sort_field_name
 from calibre.srv.ajax import search_result
-from calibre.srv.errors import (
-    BookNotFound, HTTPBadRequest, HTTPForbidden, HTTPNotFound, HTTPRedirect,
-)
+from calibre.srv.errors import BookNotFound, HTTPBadRequest, HTTPForbidden, HTTPNotFound, HTTPRedirect
 from calibre.srv.last_read import last_read_cache
-from calibre.srv.metadata import (
-    book_as_json, categories_as_json, categories_settings, icon_map,
-)
+from calibre.srv.metadata import book_as_json, categories_as_json, categories_settings, icon_map
 from calibre.srv.routes import endpoint, json
 from calibre.srv.utils import get_library_data, get_use_roman
 from calibre.utils.config import prefs, tweaks
 from calibre.utils.icu import numeric_sort_key, sort_key
-from calibre.utils.localization import (
-    _, get_lang, lang_code_for_user_manual, lang_map_for_ui, localize_website_link,
-)
+from calibre.utils.localization import _, get_lang, lang_code_for_user_manual, lang_map_for_ui, localize_website_link
 from calibre.utils.resources import get_path as P
 from calibre.utils.search_query_parser import ParseException
 from calibre.utils.serialize import json_dumps
@@ -232,7 +227,9 @@ def get_library_init_data(ctx, rd, db, num, sorts, orders, vl):
         ans['virtual_libraries'] = db._pref('virtual_libraries', {})
         ans['bools_are_tristate'] = db._pref('bools_are_tristate', True)
         ans['book_display_fields'] = get_field_list(db)
+        ans['fts_enabled'] = db.is_fts_enabled()
         ans['book_details_vertical_categories'] = db._pref('book_details_vertical_categories', ())
+        ans['fields_that_support_notes'] = tuple(db._field_supports_notes())
         mdata = ans['metadata'] = {}
         try:
             extra_books = {
@@ -296,6 +293,22 @@ def interface_data(ctx, rd):
         raise HTTPNotFound('Invalid number of books: %r' % rd.query.get('num'))
     ans.update(get_library_init_data(ctx, rd, db, num, sorts, orders, vl))
     return ans
+
+
+@endpoint('/interface-data/newly-added', postprocess=json)
+def newly_added(ctx, rd):
+    '''
+    Get newly added books.
+
+    Optional: ?num=3&library_id=<default library>
+    '''
+    db, library_id = get_library_data(ctx, rd)[:2]
+    count = int(rd.query.get('num', 3))
+    nbids = ctx.newest_book_ids(rd, db, count=count)
+    with db.safe_read_lock:
+        titles = db._all_field_for('title', nbids)
+        authors = db._all_field_for('authors', nbids)
+    return {'library_id': library_id, 'books': nbids, 'titles': titles, 'authors': authors}
 
 
 @endpoint('/interface-data/more-books', postprocess=json, methods=POSTABLE)
@@ -442,5 +455,21 @@ def field_names(ctx, rd, field):
         ans = all_lang_names()
     else:
         db, library_id = get_library_data(ctx, rd)[:2]
-        ans = tuple(sorted(db.all_field_names(field), key=numeric_sort_key))
+        try:
+            ans = tuple(sorted(db.all_field_names(field), key=numeric_sort_key))
+        except ValueError:
+            raise HTTPNotFound(f'{field} is not a one-one or many-one field')
     return ans
+
+
+@endpoint('/interface-data/field-id-map/{field}', postprocess=json)
+def field_id_map(ctx, rd, field):
+    '''
+    Get a map of all ids:names for the specified field
+    Optional: ?library_id=<default library>
+    '''
+    db, library_id = get_library_data(ctx, rd)[:2]
+    try:
+        return db.get_id_map(field)
+    except ValueError:
+        raise HTTPNotFound(f'{field} is not a one-one or many-one field')

@@ -5,8 +5,13 @@ __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, json, subprocess, errno, hashlib
-from setup import Command, build_cache_dir, edit_file, dump_json
+import errno
+import hashlib
+import json
+import os
+import subprocess
+
+from setup import Command, build_cache_dir, dump_json, edit_file
 
 
 class Message:
@@ -77,7 +82,7 @@ class Check(Command):
     def file_has_errors(self, f):
         ext = os.path.splitext(f)[1]
         if ext in {'.py', '.recipe'}:
-            p2 = subprocess.Popen(['ruff', '--no-update-check', f])
+            p2 = subprocess.Popen(['ruff', 'check', f])
             return p2.wait() != 0
         if ext == '.pyj':
             p = subprocess.Popen(['rapydscript', 'lint', f])
@@ -137,4 +142,4 @@ class UpgradeSourceCode(Command):
             if '/metadata/sources/' in q or '/store/stores/' in q:
                 continue
             files.append(q)
-        subprocess.call(['pyupgrade', '--py37-plus'] + files)
+        subprocess.call(['pyupgrade', '--py38-plus'] + files)

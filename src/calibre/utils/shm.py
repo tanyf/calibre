@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2022, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -10,7 +9,8 @@ import secrets
 import stat
 import struct
 from typing import Optional, Union
-from calibre.constants import iswindows, ismacos
+
+from calibre.constants import ismacos, iswindows
 
 SHM_NAME_MAX = 30 if ismacos else 254
 if iswindows:

@@ -5,14 +5,15 @@ __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, ast, json
+import ast
+import json
+import os
 
-from calibre.utils.config import config_dir, prefs, tweaks
-from calibre.utils.lock import ExclusiveFile
 from calibre import sanitize_file_name
 from calibre.customize.conversion import OptionRecommendation
 from calibre.customize.ui import available_output_formats
-
+from calibre.utils.config import config_dir, prefs, tweaks
+from calibre.utils.lock import ExclusiveFile
 
 config_dir = os.path.join(config_dir, 'conversion')
 
@@ -305,7 +306,7 @@ OPTIONS = {
             'pdf_default_font_size', 'pdf_mono_font_size', 'pdf_page_numbers',
             'pdf_footer_template', 'pdf_header_template', 'pdf_add_toc',
             'toc_title', 'pdf_page_margin_left', 'pdf_page_margin_top',
-            'pdf_page_margin_right', 'pdf_page_margin_bottom',
+            'pdf_page_margin_right', 'pdf_page_margin_bottom', 'pdf_no_cover',
             'pdf_use_document_margins', 'pdf_page_number_map', 'pdf_odd_even_offset'),
 
         'pml': ('inline_toc', 'full_image_depth', 'pml_output_encoding'),

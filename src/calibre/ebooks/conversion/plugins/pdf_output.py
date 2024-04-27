@@ -6,10 +6,10 @@ __docformat__ = 'restructuredtext en'
 Convert OEB ebook format to PDF.
 '''
 
-import glob, os
+import glob
+import os
 
-from calibre.customize.conversion import (OutputFormatPlugin,
-    OptionRecommendation)
+from calibre.customize.conversion import OptionRecommendation, OutputFormatPlugin
 from calibre.ptempfile import TemporaryDirectory
 from polyglot.builtins import iteritems
 
@@ -63,7 +63,7 @@ class PDFOutput(OutputFormatPlugin):
                 'The font family used to render monospace fonts. Will work only if the font is available system-wide.')),
         OptionRecommendation(name='pdf_standard_font', choices=ui_data['font_types'],
             recommended_value='serif', help=_(
-                'The font family used to render monospace fonts')),
+                'The type of font family used to render font for which no font family is specified.')),
         OptionRecommendation(name='pdf_default_font_size',
             recommended_value=20, help=_(
                 'The default font size (in pixels)')),
@@ -139,6 +139,11 @@ class PDFOutput(OutputFormatPlugin):
                 ' the PDF CropBox, not all software respects the CropBox.'
             )
         ),
+        OptionRecommendation(name='pdf_no_cover',
+            recommended_value=False,
+            help=_('Do not insert the book cover as an image at the start of the document.'
+                   ' If you use this option, the book cover will be discarded.')
+        ),
 
     }
 
@@ -164,9 +169,11 @@ class PDFOutput(OutputFormatPlugin):
         self.oeb = oeb_book
         self.input_plugin, self.opts, self.log = input_plugin, opts, log
         self.output_path = output_path
-        from calibre.ebooks.oeb.base import OPF, OPF2_NS
-        from lxml import etree
         from io import BytesIO
+
+        from lxml import etree
+
+        from calibre.ebooks.oeb.base import OPF, OPF2_NS
         package = etree.Element(OPF('package'),
             attrib={'version': '2.0', 'unique-identifier': 'dummy'},
             nsmap={None: OPF2_NS})
@@ -228,8 +235,10 @@ class PDFOutput(OutputFormatPlugin):
 
     def convert_text(self, oeb_book):
         import json
+
         from calibre.ebooks.pdf.html_writer import convert
-        self.get_cover_data()
+        if not self.opts.pdf_no_cover:
+            self.get_cover_data()
         self.process_fonts()
 
         if self.opts.pdf_use_document_margins and self.stored_page_margins:

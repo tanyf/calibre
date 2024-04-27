@@ -5,20 +5,20 @@ __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import errno
 import os
 import re
 import traceback
 
 from calibre import prints, sanitize_file_name, strftime
-from calibre.constants import DEBUG, preferred_encoding
+from calibre.constants import DEBUG, iswindows, preferred_encoding
 from calibre.db.errors import NoSuchFormat
 from calibre.db.lazy import FormatsList
 from calibre.ebooks.metadata import fmt_sidx, title_sort
 from calibre.utils.config import Config, StringConfig, tweaks
-from calibre.utils.date import as_local_time
-from calibre.utils.filenames import ascii_filename, shorten_components_to
+from calibre.utils.date import as_local_time, is_date_undefined
+from calibre.utils.filenames import ascii_filename, make_long_path_useable, shorten_components_to
 from calibre.utils.formatter import TemplateFormatter
+from calibre.utils.formatter_functions import load_user_template_functions
 from calibre.utils.localization import _
 
 plugboard_any_device_value = 'any device'
@@ -125,6 +125,8 @@ def config(defaults=None):
     x('single_dir', default=False,
             help=_('Save into a single folder, ignoring the template'
                 ' folder structure'))
+    x('save_extra_files', default=True, help=_(
+        'Save any data files associated with the book when saving the book'))
     return c
 
 
@@ -143,7 +145,7 @@ class Formatter(TemplateFormatter):
     '''
 
     def get_value(self, key, args, kwargs):
-        if key == '':
+        if not isinstance(key, str) or key == '':
             return ''
         try:
             key = key.lower()
@@ -208,11 +210,12 @@ def get_components(template, mi, id, timefmt='%b %Y', length=250,
     else:
         format_args['identifiers'] = ''
 
-    if hasattr(mi.timestamp, 'timetuple'):
+    if not is_date_undefined(mi.timestamp) and hasattr(mi.timestamp, 'timetuple'):
         format_args['timestamp'] = strftime(timefmt, mi.timestamp.timetuple())
-    if hasattr(mi.pubdate, 'timetuple'):
+    if not is_date_undefined(mi.pubdate) and hasattr(mi.pubdate, 'timetuple'):
         format_args['pubdate'] = strftime(timefmt, mi.pubdate.timetuple())
-    if hasattr(mi, 'last_modified') and hasattr(mi.last_modified, 'timetuple'):
+    if (hasattr(mi, 'last_modified') and not is_date_undefined(mi.last_modified) and
+                hasattr(mi.last_modified, 'timetuple')):
         format_args['last_modified'] = strftime(timefmt, mi.last_modified.timetuple())
 
     format_args['id'] = str(id)
@@ -319,7 +322,7 @@ def update_metadata(mi, fmt, stream, plugboards, cdata, error_report=None, plugb
 
 
 def do_save_book_to_disk(db, book_id, mi, plugboards,
-        formats, root, opts, length):
+        formats, root, opts, length, extra_files=()):
     originals = mi.cover, mi.pubdate, mi.timestamp
     formats_written = False
     try:
@@ -332,28 +335,31 @@ def do_save_book_to_disk(db, book_id, mi, plugboards,
         base_path = os.path.join(root, *components)
         base_name = os.path.basename(base_path)
         dirpath = os.path.dirname(base_path)
-        try:
-            os.makedirs(dirpath)
-        except OSError as err:
-            if err.errno != errno.EEXIST:
-                raise
-
+        os.makedirs(dirpath, exist_ok=True)
         cdata = None
         if opts.save_cover:
             cdata = db.cover(book_id)
             if cdata:
                 cpath = base_path + '.jpg'
-                with open(cpath, 'wb') as f:
+                with open(make_long_path_useable(cpath), 'wb') as f:
                     f.write(cdata)
                 mi.cover = base_name+'.jpg'
         if opts.write_opf:
             from calibre.ebooks.metadata.opf2 import metadata_to_opf
             opf = metadata_to_opf(mi)
-            with open(base_path+'.opf', 'wb') as f:
+            with open(make_long_path_useable(base_path+'.opf'), 'wb') as f:
                 f.write(opf)
     finally:
         mi.cover, mi.pubdate, mi.timestamp = originals
 
+    if extra_files and opts.save_extra_files:
+        for relpath in extra_files:
+            data_dest_path = os.path.abspath(os.path.join(dirpath, relpath))
+            try:
+                db.copy_extra_file_to(book_id, relpath, data_dest_path)
+            except FileNotFoundError:
+                os.makedirs(make_long_path_useable(os.path.dirname(data_dest_path)))
+                db.copy_extra_file_to(book_id, relpath, data_dest_path)
     if not formats:
         return not formats_written, book_id, mi.title
 
@@ -365,7 +371,7 @@ def do_save_book_to_disk(db, book_id, mi, plugboards,
         except NoSuchFormat:
             continue
         if opts.update_metadata:
-            with open(fmt_path, 'r+b') as stream:
+            with open(make_long_path_useable(fmt_path), 'r+b') as stream:
                 update_metadata(mi, fmt, stream, plugboards, cdata)
 
     return not formats_written, book_id, mi.title
@@ -377,7 +383,8 @@ def sanitize_args(root, opts):
     root = os.path.abspath(root)
 
     opts.template = preprocess_template(opts.template)
-    length = 240
+    length = 255 if iswindows else 1024
+    length -= 15
     length -= len(root)
     if length < 5:
         raise ValueError('%r is too long.'%root)
@@ -431,8 +438,10 @@ def read_serialized_metadata(data):
 
 
 def update_serialized_metadata(book, common_data=None):
+    # This is called from a worker process. It must not open the database.
     result = []
-    plugboard_cache = common_data
+    plugboard_cache = common_data['plugboard_cache']
+    load_user_template_functions(common_data['library_id'], common_data['template_functions'])
     from calibre.customize.ui import apply_null_metadata
     with apply_null_metadata:
         fmts = [fp.rpartition(os.extsep)[-1] for fp in book['fmts']]

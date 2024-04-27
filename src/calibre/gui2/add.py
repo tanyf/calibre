@@ -13,8 +13,9 @@ import traceback
 import weakref
 from collections import OrderedDict
 from io import BytesIO
-from qt.core import QObject, Qt, pyqtSignal
 from threading import Thread
+
+from qt.core import QObject, Qt, pyqtSignal
 
 from calibre import as_unicode, prints
 from calibre.constants import DEBUG, filesystem_encoding, ismacos, iswindows
@@ -197,16 +198,18 @@ class Adder(QObject):
         def extract(source):
             tdir = tempfile.mkdtemp(suffix='_archive', dir=self.tdir)
             if source.lower().endswith('.zip'):
-                from calibre.utils.zipfile import ZipFile
+                from calibre.utils.zipfile import extractall
                 try:
-                    with ZipFile(source) as zf:
-                        zf.extractall(tdir)
+                    extractall(source, tdir)
                 except Exception:
                     prints('Corrupt ZIP file, trying to use local headers')
                     from calibre.utils.localunzip import extractall
                     extractall(source, tdir)
             elif source.lower().endswith('.rar'):
                 from calibre.utils.unrar import extract
+                extract(source, tdir)
+            elif source.lower().endswith('.7z'):
+                from calibre.utils.seven_zip import extract
                 extract(source, tdir)
             return tdir
 

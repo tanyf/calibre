@@ -11,14 +11,29 @@ import textwrap
 import weakref
 from collections import OrderedDict
 from functools import partial
+
 from qt.core import (
-    QApplication, QCheckBox, QDialog, QDialogButtonBox, QFrame, QGridLayout, QIcon,
-    QInputDialog, QLabel, QMenu, QModelIndex, QSize, QSizePolicy, QSpacerItem, Qt,
-    QTextEdit, QTimer,
+    QApplication,
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
+    QFrame,
+    QGridLayout,
+    QIcon,
+    QInputDialog,
+    QLabel,
+    QMenu,
+    QModelIndex,
+    QSize,
+    QSizePolicy,
+    QSpacerItem,
+    Qt,
+    QTextEdit,
+    QTimer,
 )
 
 from calibre.gui2 import Dispatcher, error_dialog, gprefs, question_dialog
-from calibre.gui2.actions import InterfaceAction
+from calibre.gui2.actions import InterfaceActionWithLibraryDrop
 from calibre.gui2.convert.metadata import create_opf_file
 from calibre.gui2.dialogs.progress import ProgressDialog
 from calibre.ptempfile import PersistentTemporaryDirectory
@@ -145,8 +160,11 @@ class Polish(QDialog):  # {{{
         connect_lambda(b.clicked, self, lambda self: self.select_all(False))
         l.addWidget(bb, count+1, 1, 1, -1)
         self.setup_load_button()
+        self.resize(self.sizeHint())
 
-        self.resize(QSize(950, 600))
+    def sizeHint(self):
+        sz = super().sizeHint()
+        return QSize(max(950, sz.width()), max(600, sz.height()))
 
     def select_all(self, enable):
         for action in self.all_actions:
@@ -406,32 +424,13 @@ class Report(QDialog):  # {{{
 # }}}
 
 
-class PolishAction(InterfaceAction):
+class PolishAction(InterfaceActionWithLibraryDrop):
 
     name = 'Polish Books'
     action_spec = (_('Polish books'), 'polish.png',
                    _('Apply the shine of perfection to your books'), _('P'))
     dont_add_to = frozenset(['context-menu-device'])
     action_type = 'current'
-    accepts_drops = True
-
-    def accept_enter_event(self, event, mime_data):
-        if mime_data.hasFormat("application/calibre+from_library"):
-            return True
-        return False
-
-    def accept_drag_move_event(self, event, mime_data):
-        if mime_data.hasFormat("application/calibre+from_library"):
-            return True
-        return False
-
-    def drop_event(self, event, mime_data):
-        mime = 'application/calibre+from_library'
-        if mime_data.hasFormat(mime):
-            self.dropped_ids = tuple(map(int, mime_data.data(mime).data().split()))
-            QTimer.singleShot(1, self.do_drop)
-            return True
-        return False
 
     def do_drop(self):
         book_id_map = self.get_supported_books(self.dropped_ids)

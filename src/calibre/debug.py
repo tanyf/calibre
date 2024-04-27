@@ -7,20 +7,24 @@ __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 Embedded console for debugging.
 '''
 
-import sys, os, functools
-from calibre.utils.config import OptionParser
-from calibre.constants import iswindows
+import functools
+import os
+import sys
+
 from calibre import prints
+from calibre.constants import iswindows
 from calibre.startup import get_debug_executable
+from calibre.utils.config import OptionParser
 from polyglot.builtins import exec_path
 
 
 def run_calibre_debug(*args, **kw):
     import subprocess
     creationflags = 0
+    headless = bool(kw.pop('headless', False))
     if iswindows:
         creationflags = subprocess.CREATE_NO_WINDOW
-    cmd = get_debug_executable() + list(args)
+    cmd = get_debug_executable(headless=headless) + list(args)
     kw['creationflags'] = creationflags
     return subprocess.Popen(cmd, **kw)
 
@@ -131,7 +135,9 @@ def debug_device_driver():
 
 
 def add_simple_plugin(path_to_plugin):
-    import tempfile, zipfile, shutil
+    import shutil
+    import tempfile
+    import zipfile
     tdir = tempfile.mkdtemp()
     open(os.path.join(tdir, 'custom_plugin.py'),
             'wb').write(open(path_to_plugin, 'rb').read())
@@ -151,8 +157,8 @@ def print_basic_debug_info(out=None):
         out = sys.stdout
     out = functools.partial(prints, file=out)
     import platform
-    from calibre.constants import (__appname__, get_version, isportable, ismacos,
-                                   isfrozen)
+
+    from calibre.constants import __appname__, get_version, isfrozen, ismacos, isportable
     from calibre.utils.localization import set_translators
     out(__appname__, get_version(), 'Portable' if isportable else '',
         'embedded-python:', isfrozen)
@@ -170,6 +176,7 @@ def print_basic_debug_info(out=None):
     except:
         pass
     out('Interface language:', str(set_translators.lang))
+    out('EXE path:', sys.executable)
     from calibre.customize.ui import has_external_plugins, initialized_plugins
     if has_external_plugins():
         from calibre.customize import PluginInstallationType

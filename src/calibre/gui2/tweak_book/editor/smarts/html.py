@@ -7,9 +7,10 @@ __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 import re
 import sys
 from contextlib import contextmanager
-from css_parser import parseStyle
 from itertools import chain
 from operator import itemgetter
+
+from css_parser import parseStyle
 from qt.core import Qt, QTextCursor, QTextEdit
 
 from calibre import prepare_string_for_xml, xml_entity_to_unicode
@@ -20,12 +21,16 @@ from calibre.gui2 import error_dialog
 from calibre.gui2.tweak_book import current_container, tprefs
 from calibre.gui2.tweak_book.editor.smarts import NullSmarts
 from calibre.gui2.tweak_book.editor.smarts.utils import (
-    expand_tabs, get_leading_whitespace_on_block, get_text_after_cursor,
-    get_text_before_cursor, no_modifiers, smart_backspace, smart_home, smart_tab
+    expand_tabs,
+    get_leading_whitespace_on_block,
+    get_text_after_cursor,
+    get_text_before_cursor,
+    no_modifiers,
+    smart_backspace,
+    smart_home,
+    smart_tab,
 )
-from calibre.gui2.tweak_book.editor.syntax.html import (
-    ATTR_END, ATTR_NAME, ATTR_START, ATTR_VALUE
-)
+from calibre.gui2.tweak_book.editor.syntax.html import ATTR_END, ATTR_NAME, ATTR_START, ATTR_VALUE
 from calibre.utils.icu import utf16_length
 
 get_offset = itemgetter(0)
@@ -275,7 +280,7 @@ def ensure_not_within_tag_definition(cursor, forward=True):
     if boundary.is_start:
         # We are inside a tag
         if forward:
-            block, boundary = next_tag_boundary(block, offset)
+            block, boundary = next_tag_boundary(block, max(0, offset-1))
             if block is not None:
                 cursor.setPosition(block.position() + boundary.offset + 1)
                 return True
@@ -480,6 +485,7 @@ class Smarts(NullSmarts):
         template = template.replace('_TEXT_', text or '')
         editor.highlighter.join()
         c = editor.textCursor()
+        c.beginEditBlock()
         if c.hasSelection():
             c.insertText('')  # delete any existing selected text
         ensure_not_within_tag_definition(c)
@@ -487,6 +493,7 @@ class Smarts(NullSmarts):
         c.insertText(template)
         c.setPosition(p)  # ensure cursor is positioned inside the newly created tag
         editor.setTextCursor(c)
+        c.endEditBlock()
 
     def insert_tag(self, editor, name):
         m = re.match(r'[a-zA-Z0-9:-]+', name)
@@ -498,8 +505,10 @@ class Smarts(NullSmarts):
         text = self.get_smart_selection(editor, update=True)
         c = editor.textCursor()
         pos = min(c.position(), c.anchor())
+        sellen = abs(c.position() - c.anchor())
         c.insertText(f'{opent}{text}{close}')
         c.setPosition(pos + len(opent))
+        c.setPosition(c.position() + sellen, QTextCursor.MoveMode.KeepAnchor)
         editor.setTextCursor(c)
 
     def verify_for_spellcheck(self, cursor, highlighter):

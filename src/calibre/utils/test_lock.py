@@ -13,10 +13,7 @@ from threading import Thread
 
 from calibre.constants import cache_dir, iswindows
 from calibre.utils.lock import ExclusiveFile, create_single_instance_mutex, unix_open
-from calibre.utils.tdir_in_cache import (
-    clean_tdirs_in, is_tdir_locked, retry_lock_tdir, tdir_in_cache, tdirs_in,
-    unlock_file
-)
+from calibre.utils.tdir_in_cache import clean_tdirs_in, is_tdir_locked, retry_lock_tdir, tdir_in_cache, tdirs_in, unlock_file
 from polyglot.builtins import iteritems, native_string_type
 
 
@@ -109,6 +106,7 @@ class IPCLockTest(unittest.TestCase):
         finally:
             if child.poll() is None:
                 child.kill()
+                child.wait()
 
     def test_exclusive_file_other_process_clean(self):
         self.run_other_ef_op(True)

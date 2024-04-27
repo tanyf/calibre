@@ -4,6 +4,7 @@ https://www.cirsd.org/en/horizons
 
 from calibre.web.feeds.news import BasicNewsRecipe, classes
 
+
 class horizons(BasicNewsRecipe):
     title = 'Horizons'
     __author__ = 'unkn0wn'
@@ -27,6 +28,9 @@ class horizons(BasicNewsRecipe):
         classes('back-link'),
         dict(name='div', attrs={'class':'single-post-footer'})
     ]
+    
+    def get_browser(self):
+        return BasicNewsRecipe.get_browser(self, verify_ssl_certificates=False)
 
     def parse_index(self):
         soup = self.index_to_soup('https://www.cirsd.org/en/horizons')
@@ -38,8 +42,9 @@ class horizons(BasicNewsRecipe):
         self.log(self.cover_url)
         issue = a.find('div', attrs={'class':'horizon-gallery-title'})
         if issue:
-            self.timefmt = ' [' + self.tag_to_string(issue).strip() + ']'
-            self.log('Downloading Issue: ', self.timefmt)
+            self.title = self.tag_to_string(issue).strip()
+            self.timefmt = ' [' + self.tag_to_string(issue).strip().replace('Horizons ', '')  + ']'
+            self.log('Downloading Issue: ', self.timefmt, self.title)
         soup = self.index_to_soup(url)
 
         feeds = []

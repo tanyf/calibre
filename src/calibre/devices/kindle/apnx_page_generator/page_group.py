@@ -2,7 +2,7 @@ __license__ = 'GPL v3'
 __copyright__ = '2022, Vaso Peras-Likodric <vaso at vipl.in.rs>'
 __docformat__ = 'restructuredtext en'
 
-from typing import Union, List, Tuple
+from typing import List, Tuple, Union
 
 from calibre.devices.kindle.apnx_page_generator.page_number_type import PageNumberTypes
 
@@ -54,4 +54,4 @@ class PageGroup:
             values = str(self.__first_value)
         else:
             values = "|".join(self.__page_number_labels)
-        return "(%s,%s,%s)" % (starting_location, self.__page_number_type.value, values)
+        return "({},{},{})".format(starting_location, self.__page_number_type.value, values)

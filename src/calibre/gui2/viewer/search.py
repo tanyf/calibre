@@ -2,19 +2,34 @@
 # License: GPL v3 Copyright: 2020, Kovid Goyal <kovid at kovidgoyal.net>
 
 import json
-import regex
 from collections import Counter, OrderedDict
 from html import escape
-from qt.core import (
-    QAbstractItemView, QCheckBox, QComboBox, QFont, QHBoxLayout, QIcon, QLabel, Qt,
-    QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, pyqtSignal,
-)
 from threading import Thread
+
+import regex
+from qt.core import (
+    QAbstractItemView,
+    QCheckBox,
+    QComboBox,
+    QFont,
+    QHBoxLayout,
+    QIcon,
+    QLabel,
+    QMenu,
+    Qt,
+    QToolButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
+)
 
 from calibre.ebooks.conversion.search_replace import REGEX_FLAGS
 from calibre.gui2 import warning_dialog
 from calibre.gui2.gestures import GestureManager
 from calibre.gui2.progress_indicator import ProgressIndicator
+from calibre.gui2.viewer import get_boss
 from calibre.gui2.viewer.config import vprefs
 from calibre.gui2.viewer.web_view import get_data, get_manifest
 from calibre.gui2.viewer.widgets import ResultsDelegate, SearchBox
@@ -144,6 +159,14 @@ class Search:
             word_pats = tuple(regex.compile(rf'\b{x}\b', flags) for x in words)
             self._nsd = word_pats, full_pat
         return self._nsd
+
+    @property
+    def is_empty(self):
+        if not self.text:
+            return True
+        if self.mode in ('normal', 'word') and not regex.sub(r'[\s\p{P}]+', '', self.text):
+            return True
+        return False
 
     def __str__(self):
         from collections import namedtuple
@@ -384,7 +407,7 @@ class SearchInput(QWidget):  # {{{
     cleared = pyqtSignal()
     go_back = pyqtSignal()
 
-    def __init__(self, parent=None, panel_name='search'):
+    def __init__(self, parent=None, panel_name='search', show_return_button=True):
         QWidget.__init__(self, parent)
         self.ignore_search_type_changes = False
         self.l = l = QVBoxLayout(self)
@@ -454,6 +477,7 @@ class SearchInput(QWidget):  # {{{
         rb.setToolTip(_('Go back to where you were before searching'))
         rb.clicked.connect(self.go_back)
         h.addWidget(rb)
+        rb.setVisible(show_return_button)
 
     def history_saved(self, new_text, history):
         if new_text:
@@ -497,6 +521,9 @@ class SearchInput(QWidget):  # {{{
             )
 
     def emit_search(self, backwards=False):
+        boss = get_boss()
+        if boss.check_for_read_aloud(_('the location of this search result')):
+            return
         vprefs[f'viewer-{self.panel_name}-case-sensitive'] = self.case_sensitive.isChecked()
         vprefs[f'viewer-{self.panel_name}-mode'] = self.query_type.currentData()
         sq = self.search_query(backwards)
@@ -534,6 +561,8 @@ class Results(QTreeWidget):  # {{{
 
     def __init__(self, parent=None):
         QTreeWidget.__init__(self, parent)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
         self.setHeaderHidden(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.delegate = ResultsDelegate(self)
@@ -549,6 +578,14 @@ class Results(QTreeWidget):  # {{{
         self.item_map = {}
         self.gesture_manager = GestureManager(self)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+
+    def show_context_menu(self, point):
+        self.context_menu = m = QMenu(self)
+        m.addAction(QIcon.ic('plus.png'), _('Expand all'), self.expandAll)
+        m.addAction(QIcon.ic('minus.png'), _('Collapse all'), self.collapseAll)
+        self.context_menu.popup(self.mapToGlobal(point))
+        return True
+
 
     def viewportEvent(self, ev):
         if hasattr(self, 'gesture_manager'):
@@ -614,6 +651,9 @@ class Results(QTreeWidget):  # {{{
         self.count_changed.emit(n)
 
     def item_activated(self):
+        boss = get_boss()
+        if boss.check_for_read_aloud(_('the location of this search result')):
+            return
         i = self.currentItem()
         if i:
             sr = i.data(0, SEARCH_RESULT_ROLE)
@@ -799,6 +839,7 @@ class SearchPanel(QWidget):  # {{{
                 self.results.ensure_current_result_visible()
             else:
                 self.show_no_results_found()
+            self.show_search_result.emit({'on_discovery': True, 'search_finished': True, 'result_num': -1})
             return
         self.results.add_result(result)
         obj = result.for_js

@@ -18,7 +18,8 @@ from calibre.utils.config import tweaks
 from calibre.utils.date import UNDEFINED_DATE, isoformat, local_tz
 from calibre.utils.file_type_icons import EXT_MAP
 from calibre.utils.formatter import EvalFormatter
-from calibre.utils.icu import collation_order_for_partitioning, upper as icu_upper
+from calibre.utils.icu import collation_order_for_partitioning
+from calibre.utils.icu import upper as icu_upper
 from calibre.utils.localization import _, calibre_langcode_to_name
 from polyglot.builtins import iteritems, itervalues
 from polyglot.urllib import quote
@@ -90,6 +91,9 @@ def book_as_json(db, book_id):
         link_maps = db.get_all_link_maps_for_book(book_id)
         if link_maps:
             ans['link_maps'] = link_maps
+        x = db.items_with_notes_in_book(book_id)
+        if x:
+            ans['items_with_notes'] = {field: {v: k for k, v in items.items()} for field, items in x.items()}
     return ans
 
 

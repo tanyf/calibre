@@ -11,9 +11,15 @@ import sys
 
 from calibre import force_unicode
 from calibre.constants import (
-    FAKE_HOST, FAKE_PROTOCOL, SPECIAL_TITLE_FOR_WEBENGINE_COMMS, __appname__,
-    __version__, builtin_colors_dark, builtin_colors_light, builtin_decorations,
-    dark_link_color
+    FAKE_HOST,
+    FAKE_PROTOCOL,
+    SPECIAL_TITLE_FOR_WEBENGINE_COMMS,
+    __appname__,
+    __version__,
+    builtin_colors_dark,
+    builtin_colors_light,
+    builtin_decorations,
+    dark_link_color,
 )
 from calibre.ptempfile import TemporaryDirectory
 from calibre.utils.filenames import atomic_rename
@@ -60,9 +66,7 @@ def compiler():
 
     from calibre import walk
     from calibre.gui2 import must_use_qt
-    from calibre.utils.webengine import (
-        secure_webengine, setup_default_profile, setup_profile
-    )
+    from calibre.utils.webengine import secure_webengine, setup_default_profile, setup_profile
     must_use_qt()
     setup_default_profile()
 
@@ -230,6 +234,18 @@ def forked_compile():
     stdout.close()
 
 
+def run_forked_compile(data, options):
+    from calibre.debug import run_calibre_debug
+    p = run_calibre_debug('-c', 'from calibre.utils.rapydscript import *; forked_compile()',
+            json.dumps(options), stdin=subprocess.PIPE, stdout=subprocess.PIPE, headless=True)
+    stdout = p.communicate(as_bytes(data))[0]
+    if p.wait() != 0:
+        raise SystemExit(p.returncode)
+    idx = stdout.find(OUTPUT_SENTINEL)
+    result = as_unicode(stdout[idx+len(OUTPUT_SENTINEL):])
+    return result
+
+
 def compile_pyj(
     data,
     filename='<stdin>',
@@ -249,17 +265,16 @@ def compile_pyj(
         'js_version': js_version,
     }
     if not ok_to_import_webengine():
-        from calibre.debug import run_calibre_debug
-        p = run_calibre_debug('-c', 'from calibre.utils.rapydscript import *; forked_compile()',
-                json.dumps(options), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        stdout = p.communicate(as_bytes(data))[0]
-        if p.wait() != 0:
-            raise SystemExit(p.returncode)
-        idx = stdout.find(OUTPUT_SENTINEL)
-        result = as_unicode(stdout[idx+len(OUTPUT_SENTINEL):])
+        result = run_forked_compile(data, options)
     else:
-        c = compiler()
-        result = c(data, options)
+        try:
+            c = compiler()
+            result = c(data, options)
+        except RuntimeError as err:
+            if 'Cannot use Qt in non GUI thread' in str(err):
+                result = run_forked_compile(data, options)
+            else:
+                raise
     return result
 
 
@@ -335,23 +350,18 @@ def atomic_write(base, name, content):
 
 
 def run_rapydscript_tests():
-    from qt.core import QApplication, QByteArray, QEventLoop, QUrl
-    from qt.webengine import (
-        QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineUrlRequestJob,
-        QWebEngineUrlSchemeHandler
-    )
     from urllib.parse import parse_qs
+
+    from qt.core import QApplication, QByteArray, QEventLoop, QUrl
+    from qt.webengine import QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineUrlRequestJob, QWebEngineUrlSchemeHandler
 
     from calibre.constants import FAKE_HOST, FAKE_PROTOCOL
     from calibre.gui2 import must_use_qt
     from calibre.gui2.viewer.web_view import send_reply
-    from calibre.utils.webengine import (
-        create_script, insert_scripts, secure_webengine, setup_default_profile,
-        setup_fake_protocol, setup_profile
-    )
+    from calibre.utils.webengine import create_script, insert_scripts, secure_webengine, setup_default_profile, setup_fake_protocol, setup_profile
     must_use_qt()
-    setup_default_profile()
     setup_fake_protocol()
+    setup_default_profile()
 
     base = base_dir()
     rapydscript_dir = os.path.join(base, 'src', 'pyj')

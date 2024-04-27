@@ -5,13 +5,11 @@ __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 from functools import partial
-from qt.core import (
-    QApplication, QDialog, QDialogButtonBox, QEvent, QGridLayout, QIcon, QLabel, QMenu,
-    QPushButton, Qt, QTimer,
-)
+
+from qt.core import QApplication, QDialog, QDialogButtonBox, QEvent, QGridLayout, QIcon, QLabel, QMenu, QPushButton, Qt
 
 from calibre.gui2 import error_dialog
-from calibre.gui2.actions import InterfaceAction
+from calibre.gui2.actions import InterfaceActionWithLibraryDrop
 from calibre.gui2.widgets2 import HistoryComboBox
 from calibre.startup import connect_lambda
 from calibre.utils.icu import sort_key
@@ -81,7 +79,7 @@ class MarkWithTextDialog(QDialog):
 mark_books_with_text = None
 
 
-class MarkBooksAction(InterfaceAction):
+class MarkBooksAction(InterfaceActionWithLibraryDrop):
 
     name = 'Mark Books'
     action_spec = (_('Mark books'), 'marked.png', _('Temporarily mark books for easy access'), 'Ctrl+M')
@@ -90,26 +88,6 @@ class MarkBooksAction(InterfaceAction):
     dont_add_to = frozenset([
         'context-menu-device', 'menubar-device', 'context-menu-cover-browser'])
     action_menu_clone_qaction = _('Toggle mark for selected books')
-
-    accepts_drops = True
-
-    def accept_enter_event(self, event, mime_data):
-        if mime_data.hasFormat("application/calibre+from_library"):
-            return True
-        return False
-
-    def accept_drag_move_event(self, event, mime_data):
-        if mime_data.hasFormat("application/calibre+from_library"):
-            return True
-        return False
-
-    def drop_event(self, event, mime_data):
-        mime = 'application/calibre+from_library'
-        if mime_data.hasFormat(mime):
-            self.dropped_ids = tuple(map(int, mime_data.data(mime).data().split()))
-            QTimer.singleShot(1, self.do_drop)
-            return True
-        return False
 
     def do_drop(self):
         book_ids = self.dropped_ids
@@ -123,6 +101,8 @@ class MarkBooksAction(InterfaceAction):
         self.menu = m = self.qaction.menu()
         m.aboutToShow.connect(self.about_to_show_menu)
         ma = partial(self.create_menu_action, m)
+        self.show_marked_action = a = ma('mark_selected', _('Mark all selected books'), icon='marked.png')
+        a.triggered.connect(self.mark_all_selected)
         self.show_marked_action = a = ma('mark_with_text', _('Mark books with text label'), icon='marked.png')
         a.triggered.connect(partial(self.mark_with_text, book_ids=None))
         global mark_books_with_text
@@ -241,6 +221,12 @@ class MarkBooksAction(InterfaceAction):
             else:
                 mids.pop(book_id, None)
         db.data.set_marked_ids(mids)
+
+    def mark_all_selected(self):
+        book_ids = self._get_selected_ids()
+        if not book_ids:
+            return
+        self.gui.current_db.data.add_marked_ids(book_ids)
 
     def mark_with_text(self, book_ids=None):
         if book_ids is None:

@@ -6,10 +6,7 @@ import re
 
 from calibre import prepare_string_for_xml
 from calibre.constants import preferred_encoding
-from calibre.ebooks.BeautifulSoup import (
-    BeautifulSoup, CData, Comment, Declaration, NavigableString,
-    ProcessingInstruction
-)
+from calibre.ebooks.BeautifulSoup import BeautifulSoup, CData, Comment, Declaration, NavigableString, ProcessingInstruction
 from calibre.utils.html2text import html2text
 
 # Hackish - ignoring sentences ending or beginning in numbers to avoid
@@ -134,7 +131,10 @@ def markdown(val):
     except AttributeError:
         from calibre.ebooks.markdown import Markdown
         md = markdown.Markdown = Markdown()
-    return md.convert(val)
+    val = md.convert(val)
+    # The Qt Rich text widgets display <p><br></p> as two blank lines instead
+    # of one so fix that here.
+    return re.sub(r'<p(|\s+[^>]*?)>\s*<br\s*/?>\s*</p>','<p\\1>\xa0</p>', val)
 
 
 def merge_comments(one, two):

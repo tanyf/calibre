@@ -45,9 +45,9 @@ except ImportError:
 
 try:
     from urllib.error import URLError
-    from urllib.request import urlopen, Request, build_opener
+    from urllib.request import Request, build_opener, urlopen
 except Exception:
-    from urllib2 import urlopen, Request, build_opener, URLError
+    from urllib2 import Request, URLError, build_opener, urlopen
 # }}}
 
 USER_AGENT = 'calibre mirror'
@@ -437,7 +437,7 @@ def fetch_plugins(old_index):
         else:
             if entry.name in old_index:
                 ans[entry.name] = old_index[entry.name]
-            log('Failed to get plugin', entry.name, 'at', datetime.utcnow().isoformat(), 'with error:')
+            log('Failed to get plugin', entry.name, 'at', datetime.now().isoformat(), 'with error:')
             log(plugin)
     # Move staged files
     for plugin in ans.values():
@@ -646,7 +646,7 @@ def main():
         raise SystemExit('Exiting on user interrupt')
     except Exception:
         import traceback
-        log('Failed to run at:', datetime.utcnow().isoformat())
+        log('Failed to run at:', datetime.now().isoformat())
         log(traceback.format_exc())
         raise SystemExit(1)
 

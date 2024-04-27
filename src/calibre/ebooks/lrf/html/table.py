@@ -1,12 +1,13 @@
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
-import math, sys, re, numbers
+import math
+import numbers
+import re
+import sys
 
 from calibre.ebooks.lrf.fonts import get_font
-from calibre.ebooks.lrf.pylrs.pylrs import TextBlock, Text, CR, Span, \
-                                             CharButton, Plot, Paragraph, \
-                                             LrsTextTag
-from polyglot.builtins import string_or_bytes, native_string_type
+from calibre.ebooks.lrf.pylrs.pylrs import CR, CharButton, LrsTextTag, Paragraph, Plot, Span, Text, TextBlock
+from polyglot.builtins import native_string_type, string_or_bytes
 
 
 def ceil(num):
@@ -145,7 +146,8 @@ class Cell:
                 continue
             word = token.split()
             word = word[0] if word else ""
-            width = font.getsize(word)[0]
+            fl, ft, fr, fb = font.getbbox(word)
+            width = fr - fl
             if width > mwidth:
                 mwidth = width
         return parindent + mwidth + 2
@@ -191,7 +193,8 @@ class Cell:
             if (ff, fs) != (ts['fontfacename'], ts['fontsize']):
                 font = get_font(ff, self.pts_to_pixels(fs))
             for word in token.split():
-                width, height = font.getsize(word)
+                fl, ft, fr, fb = font.getbbox(word)
+                width, height = fr - fl, abs(fb - ft)
                 left, right, top, bottom = add_word(width, height, left, right, top, bottom, ls, ws)
         return right+3+max(parindent, 10), bottom
 

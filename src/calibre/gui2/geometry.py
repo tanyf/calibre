@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2022, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -7,7 +6,8 @@
 # our own restore geometry
 
 
-from qt.core import QRect, QScreen, QSize, QWidget, QApplication, Qt
+from qt.core import QApplication, QRect, QScreen, QSize, Qt, QWidget
+
 from calibre.constants import is_debugging as _is_debugging
 from calibre.utils.config_base import tweaks
 

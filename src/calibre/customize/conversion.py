@@ -1,7 +1,10 @@
 '''
 Defines the plugin system for conversions.
 '''
-import re, os, shutil, numbers
+import numbers
+import os
+import re
+import shutil
 
 from calibre import CurrentDir
 from calibre.customize import Plugin
@@ -350,7 +353,7 @@ class OutputFormatPlugin(Plugin):
 
     def specialize_css_for_output(self, log, opts, item, stylizer):
         '''
-        Can be used to make changes to the css during the CSS flattening
+        Can be used to make changes to the CSS during the CSS flattening
         process.
 
         :param item: The item (HTML file) being processed

@@ -71,8 +71,9 @@ class FB2Input(InputFormatPlugin):
             css += etree.tostring(s, encoding='unicode', method='text',
                     with_tail=False) + '\n\n'
         if css:
-            import css_parser
             import logging
+
+            import css_parser
             parser = css_parser.CSSParser(fetcher=None,
                     log=logging.getLogger('calibre.css'))
 
@@ -122,6 +123,13 @@ class FB2Input(InputFormatPlugin):
         for img in result.xpath('//img[@src]'):
             src = img.get('src')
             img.set('src', self.binary_map.get(src, src))
+
+        # make paragraphs <p> tags
+        has_block_elements = etree.XPath('descendant::*[name()="div" or name()="table"]')
+        for divp in result.xpath('//body/div[@class="paragraph"]'):
+            if not has_block_elements(divp):
+                divp.tag = 'p'
+
         index = transform.tostring(result)
         with open('index.xhtml', 'wb') as f:
             f.write(index.encode('utf-8'))

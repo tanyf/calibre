@@ -9,14 +9,11 @@ import subprocess
 from zipfile import ZipFile
 
 from calibre import CurrentDir
-from calibre.ebooks.oeb.polish.container import (
-    OCF_NS, clone_container, get_container as _gc,
-)
+from calibre.ebooks.oeb.polish.container import OCF_NS, clone_container
+from calibre.ebooks.oeb.polish.container import get_container as _gc
 from calibre.ebooks.oeb.polish.replace import rationalize_folders, rename_files
 from calibre.ebooks.oeb.polish.split import merge, split
-from calibre.ebooks.oeb.polish.tests.base import (
-    BaseTest, get_simple_book, get_split_book,
-)
+from calibre.ebooks.oeb.polish.tests.base import BaseTest, get_simple_book, get_split_book
 from calibre.ptempfile import TemporaryDirectory, TemporaryFile
 from calibre.utils.filenames import nlinks_file
 from calibre.utils.resources import get_path as P
@@ -59,7 +56,8 @@ class ContainerTests(BaseTest):
             c2.commit_item(text)
             for c in (c1, c2):
                 self.assertEqual(1, nlinks_file(c.name_path_map[text]))
-            self.assertNotEqual(c1.open(text).read(), c2.open(text).read())
+            with c1.open(text) as c1f, c2.open(text) as c2f:
+                self.assertNotEqual(c1f.read(), c2f.read())
 
             name = spine_names[1]
             with c1.open(name, mode='r+b') as f:
@@ -67,7 +65,8 @@ class ContainerTests(BaseTest):
                 f.write(b'    ')
             for c in (c1, c2):
                 self.assertEqual(1, nlinks_file(c.name_path_map[name]))
-            self.assertNotEqual(c1.open(name).read(), c2.open(name).read())
+            with c1.open(text) as c1f, c2.open(text) as c2f:
+                self.assertNotEqual(c1f.read(), c2f.read())
 
             x = base + 'out.' + fmt
             for c in (c1, c2):
@@ -200,9 +199,7 @@ class ContainerTests(BaseTest):
 
     def test_actual_case(self):
         ' Test getting the actual case for files from names on case insensitive filesystems '
-        from calibre.ebooks.oeb.polish.utils import (
-            actual_case_for_name, corrected_case_for_name,
-        )
+        from calibre.ebooks.oeb.polish.utils import actual_case_for_name, corrected_case_for_name
         book = get_simple_book()
         c = get_container(book)
         name = 'f1/f2/added file.html'

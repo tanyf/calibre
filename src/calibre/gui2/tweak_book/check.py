@@ -7,12 +7,22 @@ __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 import sys
 
 from qt.core import (
-     QIcon, Qt, QSplitter, QListWidget, QTextBrowser, QPalette, QMenu,
-     QListWidgetItem, pyqtSignal, QApplication, QStyledItemDelegate,
-     QAbstractItemView)
+    QAbstractItemView,
+    QApplication,
+    QIcon,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QPalette,
+    QSplitter,
+    QStyledItemDelegate,
+    Qt,
+    QTextBrowser,
+    pyqtSignal,
+)
 
-from calibre.ebooks.oeb.polish.check.base import WARN, INFO, DEBUG, ERROR, CRITICAL
-from calibre.ebooks.oeb.polish.check.main import run_checks, fix_errors
+from calibre.ebooks.oeb.polish.check.base import CRITICAL, DEBUG, ERROR, INFO, WARN
+from calibre.ebooks.oeb.polish.check.main import fix_errors, run_checks
 from calibre.gui2 import NO_URL_FORMATTING, safe_open_url
 from calibre.gui2.tweak_book import tprefs
 from calibre.gui2.widgets import BusyCursor
@@ -43,6 +53,14 @@ def prefix_for_level(level):
         text += ': '
     return text
 
+def build_error_message(error, with_level=False, with_line_numbers=False):
+    prefix = ''
+    filename = error.name
+    if with_level:
+        prefix = prefix_for_level(error.level)
+    if with_line_numbers and error.line:
+        filename = f'{filename}:{error.line}'
+    return f'{prefix}{error.msg}\xa0\xa0\xa0\xa0[{filename}]'
 
 class Delegate(QStyledItemDelegate):
 
@@ -99,8 +117,8 @@ class Check(QSplitter):
     def copy_to_clipboard(self):
         items = []
         for item in (self.items.item(i) for i in range(self.items.count())):
-            msg = str(item.text())
-            msg = prefix_for_level(item.data(Qt.ItemDataRole.UserRole).level) + msg
+            err = item.data(Qt.ItemDataRole.UserRole)
+            msg = build_error_message(err, with_level=True, with_line_numbers=True)
             items.append(msg)
         if items:
             QApplication.clipboard().setText('\n'.join(items))
@@ -214,7 +232,7 @@ class Check(QSplitter):
             self.hide_busy()
 
         for err in sorted(errors, key=lambda e:(100 - e.level, e.name)):
-            i = QListWidgetItem(f'{err.msg}\xa0\xa0\xa0\xa0[{err.name}]', self.items)
+            i = QListWidgetItem(build_error_message(err), self.items)
             i.setData(Qt.ItemDataRole.UserRole, err)
             i.setIcon(icon_for_level(err.level))
         if errors:

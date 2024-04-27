@@ -12,23 +12,36 @@ from functools import partial
 from itertools import chain
 from math import ceil, floor
 
-from calibre import (
-    __appname__, entity_to_unicode, fit_image, force_unicode, preferred_encoding
-)
+from calibre import __appname__, entity_to_unicode, fit_image, force_unicode, preferred_encoding
 from calibre.constants import filesystem_encoding
 from calibre.devices.interface import DevicePlugin as Device
 from calibre.ebooks import ConversionError
-from calibre.ebooks.BeautifulSoup import (
-    BeautifulSoup, Comment, Declaration, NavigableString, ProcessingInstruction, Tag
-)
+from calibre.ebooks.BeautifulSoup import BeautifulSoup, Comment, Declaration, NavigableString, ProcessingInstruction, Tag
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.ebooks.lrf import Book
 from calibre.ebooks.lrf.html.color_map import lrs_color
 from calibre.ebooks.lrf.html.table import Table
 from calibre.ebooks.lrf.pylrs.pylrs import (
-    CR, BlockSpace, BookSetting, Canvas, CharButton, DropCaps, EmpLine, Image,
-    ImageBlock, ImageStream, Italic, JumpButton, LrsError, Paragraph, Plot,
-    RuledLine, Span, Sub, Sup, TextBlock
+    CR,
+    BlockSpace,
+    BookSetting,
+    Canvas,
+    CharButton,
+    DropCaps,
+    EmpLine,
+    Image,
+    ImageBlock,
+    ImageStream,
+    Italic,
+    JumpButton,
+    LrsError,
+    Paragraph,
+    Plot,
+    RuledLine,
+    Span,
+    Sub,
+    Sup,
+    TextBlock,
 )
 from calibre.ptempfile import PersistentTemporaryFile
 from polyglot.builtins import itervalues, string_or_bytes
@@ -939,7 +952,7 @@ class HTMLConverter:
             pt = PersistentTemporaryFile(suffix='_html2lrf_scaled_image_.'+encoding.lower())
             self.image_memory.append(pt)  # Necessary, trust me ;-)
             try:
-                im.resize((int(width), int(height)), PILImage.ANTIALIAS).save(pt, encoding)
+                im.resize((int(width), int(height)), PILImage.Resampling.LANCZOS).save(pt, encoding)
                 pt.close()
                 self.scaled_images[path] = pt
                 return pt.name
@@ -1809,7 +1822,7 @@ def process_file(path, options, logger):
                 cim.convert('RGB').save(cf.name)
                 options.cover = cf.name
 
-                tim = im.resize((int(0.75*th), th), PILImage.ANTIALIAS).convert('RGB')
+                tim = im.resize((int(0.75*th), th), PILImage.Resampling.LANCZOS).convert('RGB')
                 tf = PersistentTemporaryFile(prefix=__appname__+'_', suffix=".jpg")
                 tf.close()
                 tim.save(tf.name)

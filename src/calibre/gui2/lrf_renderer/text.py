@@ -1,15 +1,19 @@
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import sys, collections, operator, copy, re, numbers
+import collections
+import copy
+import numbers
+import operator
+import re
+import sys
 
-from qt.core import (
-    Qt, QRectF, QFont, QColor, QPixmap, QGraphicsPixmapItem, QGraphicsItem,
-    QFontMetrics, QPen, QBrush, QGraphicsRectItem)
+from qt.core import QBrush, QColor, QFont, QFontMetrics, QGraphicsItem, QGraphicsPixmapItem, QGraphicsRectItem, QPen, QPixmap, QRectF, Qt
 
-from calibre.ebooks.lrf.fonts import LIBERATION_FONT_MAP
 from calibre.ebooks.hyphenate import hyphenate_word
+from calibre.ebooks.lrf.fonts import LIBERATION_FONT_MAP
 from polyglot.builtins import string_or_bytes
+
 
 def WEIGHT_MAP(wt):
     return int(wt / 10 - 1)
@@ -401,7 +405,7 @@ class Line(QGraphicsItem):
         matches = self.__class__.whitespace.finditer(phrase)
         font = QFont(ts.font)
         if self.valign is not None:
-            font.setPixelSize(font.pixelSize()/1.5)
+            font.setPixelSize(int(font.pixelSize()/1.5))
         fm = QFontMetrics(font)
         single_space_width = fm.horizontalAdvance(' ')
         height, descent = fm.height(), fm.descent()

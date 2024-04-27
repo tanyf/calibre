@@ -12,10 +12,7 @@ import tempfile
 import textwrap
 import time
 
-from setup import (
-    Command, __appname__, __version__, basenames, functions,
-    isbsd, ishaiku, islinux, modules
-)
+from setup import Command, __appname__, __version__, basenames, functions, isbsd, ishaiku, islinux, modules
 
 HEADER = '''\
 #!/usr/bin/env python{py_major_version}
@@ -339,7 +336,7 @@ class Sdist(Command):
         self.info('\tCreating tarfile...')
         dest = self.DEST.rpartition('.')[0]
         shutil.rmtree(os.path.join(tdir, '.github'))
-        subprocess.check_call(['tar', '-cf', self.a(dest), 'calibre-%s' % __version__], cwd=self.d(tdir))
+        subprocess.check_call(['tar', '--mtime=now', '-cf', self.a(dest), 'calibre-%s' % __version__], cwd=self.d(tdir))
         self.info('\tCompressing tarfile...')
         if os.path.exists(self.a(self.DEST)):
             os.remove(self.a(self.DEST))

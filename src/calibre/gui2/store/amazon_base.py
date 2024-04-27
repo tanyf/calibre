@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2022, Kovid Goyal <kovid at kovidgoyal.net>
 
-from qt.core import QUrl
 from threading import Lock
 from time import monotonic
 
-from calibre.gui2 import open_url
+from qt.core import QUrl
 
+from calibre.gui2 import open_url
 
 lock = Lock()
 cached_mod = None
@@ -21,7 +20,7 @@ def live_module():
         if now - cached_time > 3600:
             cached_mod = None
         if cached_mod is None:
-            from calibre.live import load_module, Strategy
+            from calibre.live import Strategy, load_module
             cached_mod = load_module('calibre.gui2.store.amazon_live', strategy=Strategy.fast)
         return cached_mod
 
@@ -48,8 +47,7 @@ class AmazonStore:
         open_url(QUrl(store_link))
 
     def search(self, query, max_results=10, timeout=60):
-        for result in get_method('search_amazon')(self, query, max_results=max_results, timeout=timeout):
-            yield result
+        yield from get_method('search_amazon')(self, query, max_results=max_results, timeout=timeout)
 
     def get_details(self, search_result, timeout):
         return get_method('get_details_amazon')(self, search_result, timeout)

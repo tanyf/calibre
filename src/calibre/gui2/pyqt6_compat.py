@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2021, Kovid Goyal <kovid at kovidgoyal.net>
 
 # Workaround a bunch of brain dead changes in PyQt6 that break backwards compat
@@ -7,11 +6,33 @@
 # party plugin code, we NEED backward compat.
 
 from qt.core import (
-    QAbstractItemView, QAction, QComboBox, QCoreApplication, QDialog,
-    QDialogButtonBox, QDrag, QDropEvent, QEvent, QEventLoop, QFontMetrics,
-    QFormLayout, QFrame, QHoverEvent, QImage, QIODevice, QLayout, QLineEdit, QMenu,
-    QMessageBox, QModelIndex, QPalette, QSinglePointEvent, QSizePolicy, Qt, QThread,
-    QToolButton
+    QAbstractItemView,
+    QAction,
+    QComboBox,
+    QCoreApplication,
+    QDialog,
+    QDialogButtonBox,
+    QDrag,
+    QDropEvent,
+    QEvent,
+    QEventLoop,
+    QFontMetrics,
+    QFormLayout,
+    QFrame,
+    QHoverEvent,
+    QImage,
+    QIODevice,
+    QLayout,
+    QLineEdit,
+    QMenu,
+    QMessageBox,
+    QModelIndex,
+    QPalette,
+    QSinglePointEvent,
+    QSizePolicy,
+    Qt,
+    QThread,
+    QToolButton,
 )
 
 from calibre_extensions import progress_indicator

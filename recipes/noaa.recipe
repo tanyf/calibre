@@ -6,8 +6,8 @@ __copyright__ = '2009, Darko Miletic <darko.miletic at gmail.com>'
 noaa.com
 '''
 
-from calibre.web.feeds.news import BasicNewsRecipe
 from calibre.ebooks.BeautifulSoup import Tag
+from calibre.web.feeds.news import BasicNewsRecipe
 
 
 def new_tag(soup, name, attrs=()):
@@ -29,7 +29,7 @@ class NOAA(BasicNewsRecipe):
     use_embedded_content = False
     simultaneous_downloads = 1
     encoding = 'utf-8'
-    lang = 'en-US'
+    lang = 'en'
     language = 'en'
 
     remove_tags = [dict(name=['embed', 'object']), dict(name='div', attrs={'id': 'leftNav'}), dict(name='div', attrs={'id': 'topNav'}), dict(name='div', attrs={'class': 'feedback_box'}), dict(name='div', attrs={'id': 'midBlock'}), dict(name='div', attrs={'id': 'footer'}) ]  # noqa

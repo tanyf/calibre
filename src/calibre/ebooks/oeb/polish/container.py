@@ -12,37 +12,41 @@ import sys
 import unicodedata
 import uuid
 from collections import defaultdict
-from css_parser import getUrls, replaceUrls
 from io import BytesIO
 from itertools import count
+
+from css_parser import getUrls, replaceUrls
 
 from calibre import CurrentDir, walk
 from calibre.constants import iswindows
 from calibre.customize.ui import plugin_for_input_format, plugin_for_output_format
 from calibre.ebooks import escape_xpath_attr
 from calibre.ebooks.chardet import xml_to_unicode
-from calibre.ebooks.conversion.plugins.epub_input import (
-    ADOBE_OBFUSCATION, IDPF_OBFUSCATION, decrypt_font_data
-)
-from calibre.ebooks.conversion.preprocess import (
-    CSSPreProcessor as cssp, HTMLPreProcessor
-)
-from calibre.ebooks.metadata.opf3 import (
-    CALIBRE_PREFIX, ensure_prefix, items_with_property, read_prefixes
-)
+from calibre.ebooks.conversion.plugins.epub_input import ADOBE_OBFUSCATION, IDPF_OBFUSCATION, decrypt_font_data
+from calibre.ebooks.conversion.preprocess import CSSPreProcessor as cssp
+from calibre.ebooks.conversion.preprocess import HTMLPreProcessor
+from calibre.ebooks.metadata.opf3 import CALIBRE_PREFIX, ensure_prefix, items_with_property, read_prefixes
 from calibre.ebooks.metadata.utils import parse_opf_version
 from calibre.ebooks.mobi import MobiError
 from calibre.ebooks.mobi.reader.headers import MetadataHeader
 from calibre.ebooks.oeb.base import (
-    DC11_NS, OEB_DOCS, OEB_STYLES, OPF, OPF2_NS, Manifest, itercsslinks, iterlinks,
-    rewrite_links, serialize, urlquote, urlunquote
+    DC11_NS,
+    OEB_DOCS,
+    OEB_STYLES,
+    OPF,
+    OPF2_NS,
+    Manifest,
+    itercsslinks,
+    iterlinks,
+    rewrite_links,
+    serialize,
+    urlquote,
+    urlunquote,
 )
 from calibre.ebooks.oeb.parse_utils import NotHTML, parse_html
 from calibre.ebooks.oeb.polish.errors import DRMError, InvalidBook
 from calibre.ebooks.oeb.polish.parsing import parse as parse_html_tweak
-from calibre.ebooks.oeb.polish.utils import (
-    CommentFinder, PositionFinder, adjust_mime_for_epub, guess_type, parse_css, OEB_FONTS
-)
+from calibre.ebooks.oeb.polish.utils import OEB_FONTS, CommentFinder, PositionFinder, adjust_mime_for_epub, guess_type, parse_css
 from calibre.ptempfile import PersistentTemporaryDirectory, PersistentTemporaryFile
 from calibre.utils.filenames import hardlink_file, nlinks_file, retry_on_fail
 from calibre.utils.ipc.simple_worker import WorkerError, fork_job
@@ -1006,7 +1010,7 @@ class Container(ContainerBase):  # {{{
         if name == self.opf_name and root.nsmap.get(None) == OPF2_NS:
             # Needed as I can't get lxml to output opf:role and
             # not output <opf:metadata> as well
-            data = re.sub(br'(<[/]{0,1})opf:', r'\1', data)
+            data = re.sub(br'(<[/]{0,1})opf:', br'\1', data)
         return data
 
     def commit_item(self, name, keep_parsed=False):
@@ -1472,6 +1476,28 @@ def opf_to_azw3(opf, outpath, container):
 
 def epub_to_azw3(epub, outpath=None):
     container = get_container(epub, tweak_mode=True)
+    changed = False
+    for item in container.opf_xpath('//opf:manifest/opf:item[@properties and @href]'):
+        p = item.get('properties').split()
+        if 'cover-image' in p:
+            href = item.get('href')
+            guides = container.opf_xpath('//opf:guide')
+            if not guides:
+                guides = (container.opf.makeelement(OPF('guide')),)
+                container.opf.append(guides[0])
+            for guide in guides:
+                for child in guide:
+                    if child.get('type') == 'cover':
+                        break
+                else:
+                    guide.append(guide.makeelement(OPF('reference'), type='cover', href=href))
+                    changed = True
+            break
+        elif 'calibre:title-page' in p:
+            item.getparent().remove(item)
+    if changed:
+        container.dirty(container.opf_name)
+        container.commit_item(container.opf_name)
     outpath = outpath or (epub.rpartition('.')[0] + '.azw3')
     opf_to_azw3(container.name_to_abspath(container.opf_name), outpath, container)
 

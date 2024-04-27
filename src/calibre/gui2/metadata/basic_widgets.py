@@ -11,11 +11,35 @@ import shutil
 import textwrap
 import weakref
 from datetime import date, datetime
+
 from qt.core import (
-    QAbstractItemView, QAction, QApplication, QComboBox, QDateTime, QDialog,
-    QDialogButtonBox, QDoubleSpinBox, QGridLayout, QIcon, QKeySequence, QLabel,
-    QLineEdit, QListWidgetItem, QMenu, QMessageBox, QPixmap, QPlainTextEdit, QSize,
-    QSizePolicy, Qt, QToolButton, QUndoCommand, QUndoStack, QUrl, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QAction,
+    QApplication,
+    QComboBox,
+    QDateTime,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QGridLayout,
+    QIcon,
+    QKeySequence,
+    QLabel,
+    QLineEdit,
+    QListWidgetItem,
+    QMenu,
+    QMessageBox,
+    QPixmap,
+    QPlainTextEdit,
+    QSize,
+    QSizePolicy,
+    Qt,
+    QToolButton,
+    QUndoCommand,
+    QUndoStack,
+    QUrl,
+    QVBoxLayout,
+    QWidget,
     pyqtSignal,
 )
 
@@ -24,45 +48,34 @@ from calibre.constants import iswindows
 from calibre.customize.ui import run_plugins_on_import
 from calibre.db import SPOOL_SIZE
 from calibre.ebooks import BOOK_EXTENSIONS
-from calibre.ebooks.metadata import (
-    authors_to_sort_string, check_isbn, string_to_authors, title_sort,
-)
+from calibre.ebooks.metadata import authors_to_sort_string, check_isbn, string_to_authors, title_sort
 from calibre.ebooks.metadata.meta import get_metadata
-from calibre.ebooks.oeb.polish.main import SUPPORTED as EDIT_SUPPORTED
-from calibre.gui2 import (
-    choose_files_and_remember_all_files, choose_images, error_dialog,
-    file_icon_provider, gprefs,
-)
+from calibre.gui2 import choose_files_and_remember_all_files, choose_images, error_dialog, file_icon_provider, gprefs
 from calibre.gui2.comments_editor import Editor
 from calibre.gui2.complete2 import EditWithComplete
 from calibre.gui2.dialogs.tag_editor import TagEditor
 from calibre.gui2.languages import LanguagesEdit as LE
-from calibre.gui2.widgets import EnLineEdit, FormatList as _FormatList, ImageView, LineEditIndicators
-from calibre.gui2.widgets2 import (
-    DateTimeEdit, Dialog, RatingEditor, RightClickButton, access_key,
-    populate_standard_spinbox_context_menu,
-)
+from calibre.gui2.widgets import EnLineEdit, ImageView, LineEditIndicators
+from calibre.gui2.widgets import FormatList as _FormatList
+from calibre.gui2.widgets2 import DateTimeEdit, Dialog, RatingEditor, RightClickButton, access_key, populate_standard_spinbox_context_menu
 from calibre.library.comments import comments_to_html
 from calibre.ptempfile import PersistentTemporaryFile, SpooledTemporaryFile
 from calibre.utils.config import prefs, tweaks
 from calibre.utils.date import (
-    UNDEFINED_DATE, as_local_time, internal_iso_format_string, is_date_undefined,
-    local_tz, parse_only_date, qt_to_dt, utcfromtimestamp,
+    UNDEFINED_DATE,
+    as_local_time,
+    internal_iso_format_string,
+    is_date_undefined,
+    local_tz,
+    parse_only_date,
+    qt_from_dt,
+    qt_to_dt,
+    utcfromtimestamp,
 )
 from calibre.utils.filenames import make_long_path_useable
 from calibre.utils.icu import sort_key, strcmp
 from calibre.utils.localization import ngettext
 from polyglot.builtins import iteritems
-
-
-def show_locked_file_error(parent, err):
-    import traceback
-    fname = getattr(err, 'filename', None)
-    p = 'Locked file: %s\n\n'%fname if fname else ''
-    error_dialog(parent, _('Permission denied'),
-            _('Could not change the on disk location of this'
-                ' book. Is it open in another program?'),
-            det_msg=p+traceback.format_exc(), show=True)
 
 
 def save_dialog(parent, title, msg, det_msg=''):
@@ -145,6 +158,8 @@ def make_undoable(spinbox):
                 self.undo_val = widget.value()
             if isinstance(val, date) and not isinstance(val, datetime):
                 val = parse_only_date(val.isoformat(), assume_utc=False, as_utc=False)
+            if isinstance(val, datetime):
+                val = qt_from_dt(val)
             self.redo_val = val
 
         def undo(self):
@@ -199,6 +214,8 @@ def make_undoable(spinbox):
             if hasattr(self, 'setDateTime'):
                 if isinstance(val, date) and not isinstance(val, datetime) and not is_date_undefined(val):
                     val = parse_only_date(val.isoformat(), assume_utc=False, as_utc=False)
+                if isinstance(val, datetime):
+                    val = qt_from_dt(val)
                 self.setDateTime(val)
             elif hasattr(self, 'setValue'):
                 self.setValue(val)
@@ -389,9 +406,9 @@ class AuthorsEdit(EditWithComplete, ToMetadataMixin):
             if d == QMessageBox.StandardButton.Yes:
                 try:
                     self.commit(self.db, self.id_)
-                except PermissionError as err:
-                    show_locked_file_error(self, err)
-                    return
+                except OSError as e:
+                    e.locking_violation_msg = _('Could not change on-disk location of this book\'s files.')
+                    raise
                 self.db.commit()
                 self.original_val = self.current_val
             else:
@@ -851,6 +868,7 @@ class FormatList(_FormatList):
         return QSize(sz.width() * 7, sz.height() * 3)
 
     def contextMenuEvent(self, event):
+        from calibre.ebooks.oeb.polish.main import SUPPORTED as EDIT_SUPPORTED
         item = self.itemFromIndex(self.currentIndex())
         originals = [self.item(x).ext.upper() for x in range(self.count())]
         originals = [x for x in originals if x.startswith('ORIGINAL_')]
@@ -1256,9 +1274,7 @@ class Cover(ImageView):  # {{{
         cdata = self.current_val
         if not cdata:
             return
-        from calibre.utils.img import (
-            image_from_data, image_to_data, remove_borders_from_image,
-        )
+        from calibre.utils.img import image_from_data, image_to_data, remove_borders_from_image
         img = image_from_data(cdata)
         nimg = remove_borders_from_image(img)
         if nimg is not img:

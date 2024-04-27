@@ -5,15 +5,17 @@ __license__   = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
+import os
 from collections import namedtuple
 from functools import partial
 from io import BytesIO
 
+from calibre.db.backend import FTSQueryError
+from calibre.db.constants import RESOURCE_URL_SCHEME
+from calibre.db.tests.base import IMG, BaseTest
 from calibre.ebooks.metadata import author_to_author_sort, title_sort
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.utils.date import UNDEFINED_DATE
-from calibre.db.tests.base import BaseTest, IMG
-from calibre.db.backend import FTSQueryError
 from polyglot.builtins import iteritems, itervalues
 
 
@@ -321,8 +323,9 @@ class WritingTest(BaseTest):
         af(self.init_cache(cl).dirtied_cache)
 
         prev = cache.field_for('last_modified', 3)
-        import calibre.db.cache as c
         from datetime import timedelta
+
+        import calibre.db.cache as c
         utime = prev+timedelta(days=1)
         onowf = c.nowf
         c.nowf = lambda: utime
@@ -368,6 +371,22 @@ class WritingTest(BaseTest):
         af(mb.is_alive())
         from calibre.ebooks.metadata.opf2 import OPF
         book_ids = (1,2,3)
+
+        def read_all_formats():
+            fbefore = {}
+            for book_id in book_ids:
+                ff = fbefore[book_id] = {}
+                for fmt in cache.formats(book_id):
+                    ff[fmt] = cache.format(book_id, fmt)
+            return fbefore
+
+        def read_all_extra_files(book_id=1):
+            ans = {}
+            bp = cache.field_for('path', book_id)
+            for (relpath, fobj, stat_result) in cache.backend.iter_extra_files(book_id, bp, cache.fields['formats']):
+                ans[relpath] = fobj.read()
+            return ans
+
         for book_id in book_ids:
             raw = cache.read_backup(book_id)
             opf = OPF(BytesIO(raw))
@@ -376,15 +395,36 @@ class WritingTest(BaseTest):
         tested_fields = 'title authors tags'.split()
         before = {f:cache.all_field_for(f, book_ids) for f in tested_fields}
         lbefore = tuple(cache.get_all_link_maps_for_book(i) for i in book_ids)
+        fbefore = read_all_formats()
+        bookdir = os.path.dirname(cache.format_abspath(1, '__COVER_INTERNAL__'))
+        with open(os.path.join(bookdir, 'exf'), 'w') as f:
+            f.write('exf')
+        os.mkdir(os.path.join(bookdir, 'sub'))
+        with open(os.path.join(bookdir, 'sub', 'recurse'), 'w') as f:
+            f.write('recurse')
+        ebefore = read_all_extra_files()
+        authors = sorted(cache.all_field_ids('authors'))
+        h1 = cache.add_notes_resource(b'resource1', 'r1.jpg')
+        h2 = cache.add_notes_resource(b'resource2', 'r2.jpg')
+        doc = f'simple notes for an author <img src="{RESOURCE_URL_SCHEME}://{h1.replace(":", "/",1)}"> '
+        cache.set_notes_for('authors', authors[0], doc, resource_hashes=(h1,))
+        doc += f'2 <img src="{RESOURCE_URL_SCHEME}://{h2.replace(":", "/",1)}">'
+        cache.set_notes_for('authors', authors[1], doc, resource_hashes=(h1,h2))
+        notes_before = {cache.get_item_name('authors', aid): cache.export_note('authors', aid) for aid in authors}
         cache.close()
         from calibre.db.restore import Restore
         restorer = Restore(cl)
         restorer.start()
-        restorer.join(8)
+        restorer.join(60)
         af(restorer.is_alive())
         cache = self.init_cache(cl)
         ae(before, {f:cache.all_field_for(f, book_ids) for f in tested_fields})
         ae(lbefore, tuple(cache.get_all_link_maps_for_book(i) for i in book_ids))
+        ae(fbefore, read_all_formats())
+        ae(ebefore, read_all_extra_files())
+        authors = sorted(cache.all_field_ids('authors'))
+        notes_after = {cache.get_item_name('authors', aid): cache.export_note('authors', aid) for aid in authors}
+        ae(notes_before, notes_after)
     # }}}
 
     def test_set_cover(self):  # {{{
@@ -783,7 +823,7 @@ class WritingTest(BaseTest):
 
     def test_annotations(self):  # {{{
         'Test handling of annotations'
-        from calibre.utils.date import utcnow, EPOCH
+        from calibre.utils.date import EPOCH, utcnow
         cl = self.cloned_library
         cache = self.init_cache(cl)
         # First empty dirtied

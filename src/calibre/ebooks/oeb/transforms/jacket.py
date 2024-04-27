@@ -17,9 +17,7 @@ from calibre.constants import iswindows
 from calibre.ebooks.chardet import strip_encoding_declarations
 from calibre.ebooks.metadata import fmt_sidx, rating_to_stars
 from calibre.ebooks.metadata.sources.identify import urls_from_identifiers
-from calibre.ebooks.oeb.base import (
-    XHTML, XHTML_NS, XPath, urldefrag, urlnormalize, xml2text,
-)
+from calibre.ebooks.oeb.base import XHTML, XHTML_NS, XPath, urldefrag, urlnormalize, xml2text
 from calibre.library.comments import comments_to_html, markdown
 from calibre.utils.config import tweaks
 from calibre.utils.date import as_local_time, format_date, is_date_undefined
@@ -373,6 +371,13 @@ def render_jacket(mi, output_profile,
                     elif ctype == 'markdown':
                         val = markdown(val)
                     else:
+                        val = comments_to_html(val)
+                    args[dkey] = val
+                elif dt == 'composite':
+                    val = val or ''
+                    # if the column is marked as containing html, use it
+                    # unchanged. Otherwise treat it as a comment.
+                    if not m.get('display', {}).get('contains_html', False):
                         val = comments_to_html(val)
                     args[dkey] = val
                 else:

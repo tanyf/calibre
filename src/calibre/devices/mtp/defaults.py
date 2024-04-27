@@ -5,11 +5,11 @@ __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import traceback, re
+import re
+import traceback
 
 from calibre.constants import iswindows
 from polyglot.builtins import iteritems
-
 
 supernote_settings = {
     'calibre_file_paths': {'metadata':'Document/metadata.calibre', 'driveinfo':'Document/driveinfo.calibre'},
@@ -31,13 +31,16 @@ class DeviceDefaults:
                 # B&N devices
                 ({'vendor':0x2080}, {
                     'format_map': ['epub', 'pdf'],
-                    'send_to': ['NOOK/My Books', 'NOOK/My Files', 'NOOK', 'Calibre_Companion', 'Books',
-                    'eBooks/import', 'eBooks', 'sdcard/ebooks'],
+                    # NOOK does not allow writing files into root
+                    'calibre_file_paths': {'metadata':'NOOK/metadata.calibre', 'driveinfo':'NOOK/driveinfo.calibre'},
+                    'send_to': ['NOOK/My Books', 'NOOK/My Files', 'NOOK', 'Calibre_Companion', 'Books', 'eBooks/import', 'eBooks', 'sdcard/ebooks'],
                     }
                 ),
-                # Supernote A5 and A5X
+                # Supernote A5 and A5X and A6X2
                 ({'vendor': 0x2207, 'product': 0x0031}, supernote_settings),
                 ({'vendor': 0x2207, 'product': 0x0011}, supernote_settings),
+                ({'vendor': 0x2207, 'product': 0x0007}, supernote_settings),  # A6X2
+                ({'vendor': 0x2207, 'product': 0x0017}, supernote_settings),  # A6X2
         )
 
     def __call__(self, device, driver):
@@ -64,8 +67,6 @@ class DeviceDefaults:
                     break
             if matches:
                 ans = rule[1]
-                if vid == 0x2080 and pid == 0x000a:
-                    ans['calibre_file_paths'] = {'metadata':'NOOK/metadata.calibre', 'driveinfo':'NOOK/driveinfo.calibre'}
-                return ans
+                return ans, vid, pid
 
-        return {}
+        return {}, vid, pid

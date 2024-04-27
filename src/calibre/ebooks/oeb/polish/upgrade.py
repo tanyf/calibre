@@ -4,17 +4,13 @@
 
 import sys
 
-from calibre.ebooks.conversion.plugins.epub_input import (
-    ADOBE_OBFUSCATION, IDPF_OBFUSCATION
-)
+from calibre.ebooks.conversion.plugins.epub_input import ADOBE_OBFUSCATION, IDPF_OBFUSCATION
 from calibre.ebooks.metadata.opf3 import XPath
 from calibre.ebooks.metadata.opf_2_to_3 import upgrade_metadata
 from calibre.ebooks.oeb.base import DC, EPUB_NS, OEB_DOCS, xpath
 from calibre.ebooks.oeb.parse_utils import ensure_namespace_prefixes
 from calibre.ebooks.oeb.polish.opf import get_book_language
-from calibre.ebooks.oeb.polish.toc import (
-    commit_nav_toc, find_existing_ncx_toc, get_landmarks, get_toc
-)
+from calibre.ebooks.oeb.polish.toc import commit_nav_toc, find_existing_ncx_toc, get_landmarks, get_toc
 from calibre.ebooks.oeb.polish.utils import OEB_FONTS
 from calibre.utils.short_uuid import uuid4
 
@@ -74,7 +70,10 @@ def collect_properties(container):
         if mt.lower() not in OEB_DOCS:
             continue
         name = container.href_to_name(item.get('href'), container.opf_name)
-        root = container.parsed(name)
+        try:
+            root = container.parsed(name)
+        except KeyError:
+            continue
         root = ensure_namespace_prefixes(root, {'epub': EPUB_NS})
         properties = set()
         container.replace(name, root)  # Ensure entities are converted

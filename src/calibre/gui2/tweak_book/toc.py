@@ -4,12 +4,27 @@
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
-from qt.core import (
-    QAction, QApplication, QDialog, QDialogButtonBox, QGridLayout, QIcon, QMenu, QSize,
-    QStackedWidget, QStyledItemDelegate, Qt, QTimer, QTreeWidget, QTreeWidgetItem,
-    QVBoxLayout, QWidget, pyqtSignal,
-)
 from time import monotonic
+
+from qt.core import (
+    QAction,
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QGridLayout,
+    QIcon,
+    QMenu,
+    QSize,
+    QStackedWidget,
+    QStyledItemDelegate,
+    Qt,
+    QTimer,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
+)
 
 from calibre.constants import ismacos
 from calibre.ebooks.oeb.polish.toc import commit_toc, get_toc
@@ -68,7 +83,7 @@ class TOCEditor(QDialog):
     def workaround_macos_mouse_with_webview_bug(self):
         # macOS is weird: https://bugs.launchpad.net/calibre/+bug/2004639
         # needed as of Qt 6.4.2
-        d = info_dialog(self, _('Loading...'), _('Loading view, please wait...'), show_copy_button=False)
+        d = info_dialog(self, _('Loading...'), _('Loading table of contents view, please wait...'), show_copy_button=False)
         QTimer.singleShot(0, d.reject)
         d.exec()
 

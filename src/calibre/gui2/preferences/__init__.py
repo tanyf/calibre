@@ -7,14 +7,29 @@ __docformat__ = 'restructuredtext en'
 
 import textwrap
 
-from qt.core import (QWidget, pyqtSignal, QCheckBox, QAbstractSpinBox, QApplication,
-    QLineEdit, QComboBox, Qt, QIcon, QDialog, QVBoxLayout,
-    QDialogButtonBox, QListView, QEvent, QListWidget, QTableWidget)
+from qt.core import (
+    QAbstractSpinBox,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QEvent,
+    QIcon,
+    QLineEdit,
+    QListView,
+    QListWidget,
+    Qt,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
+)
 
 from calibre.customize.ui import preferences_plugins
-from calibre.utils.config import ConfigProxy
 from calibre.gui2.complete2 import EditWithComplete
 from calibre.gui2.widgets import HistoryLineEdit
+from calibre.utils.config import ConfigProxy
 from polyglot.builtins import string_or_bytes
 
 
@@ -98,6 +113,16 @@ class ConfigWidgetInterface:
         pass
 
 
+def set_help_tips(gui_obj, tt):
+    if tt:
+        if not str(gui_obj.whatsThis()):
+            gui_obj.setWhatsThis(tt)
+        if not str(gui_obj.statusTip()):
+            gui_obj.setStatusTip(tt)
+        tt = '\n'.join(textwrap.wrap(tt, 70))
+        gui_obj.setToolTip(tt)
+
+
 class Setting:
 
     CHOICES_SEARCH_FLAGS = Qt.MatchFlag.MatchExactly | Qt.MatchFlag.MatchCaseSensitive
@@ -138,13 +163,7 @@ class Setting:
             if h:
                 self.gui_obj.setToolTip(h)
         tt = str(self.gui_obj.toolTip())
-        if tt:
-            if not str(self.gui_obj.whatsThis()):
-                self.gui_obj.setWhatsThis(tt)
-            if not str(self.gui_obj.statusTip()):
-                self.gui_obj.setStatusTip(tt)
-            tt = '\n'.join(textwrap.wrap(tt, 70))
-            self.gui_obj.setToolTip(tt)
+        set_help_tips(self.gui_obj, tt)
 
     def changed(self, *args):
         self.widget.changed_signal.emit()
@@ -273,7 +292,7 @@ class ConfigWidgetBase(QWidget, ConfigWidgetInterface):
         Register a setting.
 
         :param name: The setting name
-        :param config: The config object that reads/writes the setting
+        :param config_obj: The config object that reads/writes the setting
         :param gui_name: The name of the GUI object that presents an interface
                          to change the setting. By default it is assumed to be
                          ``'opt_' + name``.
@@ -333,8 +352,8 @@ class ConfigDialog(QDialog):
 
 
 def init_gui():
-    from calibre.gui2.ui import Main
     from calibre.gui2.main import option_parser
+    from calibre.gui2.ui import Main
     from calibre.library import db
     parser = option_parser()
     opts, args = parser.parse_args([])

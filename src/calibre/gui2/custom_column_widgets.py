@@ -8,10 +8,29 @@ __docformat__ = 'restructuredtext en'
 import os
 from collections import OrderedDict
 from functools import partial
+
 from qt.core import (
-    QApplication, QCheckBox, QComboBox, QDateTime, QDialog, QDoubleSpinBox, QGridLayout,
-    QGroupBox, QHBoxLayout, QIcon, QLabel, QLineEdit, QMessageBox, QPlainTextEdit,
-    QSizePolicy, QSpacerItem, QSpinBox, QStyle, Qt, QToolButton, QUrl, QVBoxLayout,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QIcon,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPlainTextEdit,
+    QSizePolicy,
+    QSpacerItem,
+    QSpinBox,
+    QStyle,
+    Qt,
+    QToolButton,
+    QUrl,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -21,13 +40,14 @@ from calibre.gui2.comments_editor import Editor as CommentsEditor
 from calibre.gui2.complete2 import EditWithComplete as EWC
 from calibre.gui2.dialogs.tag_editor import TagEditor
 from calibre.gui2.library.delegates import ClearingDoubleSpinBox, ClearingSpinBox
-from calibre.gui2.widgets2 import DateTimeEdit as DateTimeEditBase, RatingEditor
+from calibre.gui2.markdown_editor import Editor as MarkdownEditor
+from calibre.gui2.widgets2 import DateTimeEdit as DateTimeEditBase
+from calibre.gui2.widgets2 import RatingEditor
 from calibre.library.comments import comments_to_html
 from calibre.utils.config import tweaks
-from calibre.utils.date import (
-    as_local_time, as_utc, internal_iso_format_string, is_date_undefined, now, qt_to_dt,
-)
-from calibre.utils.icu import lower as icu_lower, sort_key
+from calibre.utils.date import as_local_time, as_utc, internal_iso_format_string, is_date_undefined, now, qt_from_dt, qt_to_dt
+from calibre.utils.icu import lower as icu_lower
+from calibre.utils.icu import sort_key
 
 
 class EditWithComplete(EWC):
@@ -348,7 +368,7 @@ class DateTimeEdit(DateTimeEditBase):
         DateTimeEditBase.focusOutEvent(self, x)
 
     def set_to_today(self):
-        self.setDateTime(now())
+        self.setDateTime(qt_from_dt(now()))
 
     def set_to_clear(self):
         self.setDateTime(UNDEFINED_QDATETIME)
@@ -399,12 +419,12 @@ class DateTime(Base):
         if val is None:
             val = self.dte.minimumDateTime()
         else:
-            val = QDateTime(val)
+            val = qt_from_dt(val)
         self.dte.setDateTime(val)
 
     def getter(self):
         val = self.dte.dateTime()
-        if val <= UNDEFINED_QDATETIME:
+        if is_date_undefined(val):
             val = None
         else:
             val = qt_to_dt(val)
@@ -467,6 +487,47 @@ class Comments(Base):
         self.signals_to_disconnect.append(self._tb.data_changed)
 
 
+class Markdown(Base):
+
+    def setup_ui(self, parent):
+        self._box = QGroupBox(parent)
+        self._box.setTitle(label_string(self.col_metadata['name']))
+        self._layout = QVBoxLayout()
+        self._tb = MarkdownEditor(self._box)
+        self._tb.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        # self._tb.setTabChangesFocus(True)
+        self._layout.addWidget(self._tb)
+        self._box.setLayout(self._layout)
+        self.widgets = [self._box]
+
+    def initialize(self, book_id):
+        path = self.db.abspath(book_id, index_is_id=True)
+        if path:
+            self._tb.set_base_url(QUrl.fromLocalFile(os.path.join(path, 'metadata.html')))
+        return super().initialize(book_id)
+
+    def setter(self, val):
+        self._tb.markdown = str(val or '').strip()
+
+    def getter(self):
+        val = self._tb.markdown.strip()
+        if not val:
+            val = None
+        return val
+
+    @property
+    def tab(self):
+        return self._tb.tab
+
+    @tab.setter
+    def tab(self, val):
+        self._tb.tab = val
+
+    def connect_data_changed(self, slot):
+        self._tb.editor.textChanged.connect(slot)
+        self.signals_to_disconnect.append(self._tb.editor.textChanged)
+
+
 class MultipleWidget(QWidget):
 
     def __init__(self, parent, only_manage_items=False, widget=EditWithComplete, name=None):
@@ -481,10 +542,10 @@ class MultipleWidget(QWidget):
         if name is None:
             name = _('items')
         if only_manage_items:
-            self.editor_button.setToolTip(_('Open the {} Category editor').format(name))
+            self.editor_button.setToolTip(_('Open the Manage {} window').format(name))
         else:
-            self.editor_button.setToolTip(_('Open the {} editor. If Ctrl or Shift '
-                                            'is pressed, open the {} Category editor').format(name, name))
+            self.editor_button.setToolTip(_('Open the {0} editor. If Ctrl or Shift '
+                                            'is pressed, open the Manage {0} window').format(name))
         self.editor_button.setIcon(QIcon.ic('chapters.png'))
         layout.addWidget(self.editor_button)
         self.setLayout(layout)
@@ -780,8 +841,10 @@ def comments_factory(db, key, parent):
     ctype = fm.get('display', {}).get('interpret_as', 'html')
     if ctype == 'short-text':
         return SimpleText(db, key, parent)
-    if ctype in ('long-text', 'markdown'):
+    if ctype == 'long-text':
         return LongText(db, key, parent)
+    if ctype == 'markdown':
+        return Markdown(db, key, parent)
     return Comments(db, key, parent)
 
 
@@ -829,6 +892,11 @@ def get_field_list(db, use_defaults=False, pref_data_override=None):
         return [(k,v) for k,v in result.items()]
 
 
+def get_custom_columns_to_display_in_editor(db):
+    return list([k[0] for k in
+        get_field_list(db, use_defaults=db.prefs['edit_metadata_ignore_display_order']) if k[1]])
+
+
 def populate_metadata_page(layout, db, book_id, bulk=False, two_column=False, parent=None):
     def widget_factory(typ, key):
         if bulk:
@@ -841,7 +909,7 @@ def populate_metadata_page(layout, db, book_id, bulk=False, two_column=False, pa
     fm = db.field_metadata
 
     # Get list of all non-composite custom fields. We must make widgets for these
-    cols = [k[0] for k in get_field_list(db, use_defaults=db.prefs['edit_metadata_ignore_display_order']) if k[1]]
+    cols = get_custom_columns_to_display_in_editor(db)
     # This deals with the historical behavior where comments fields go to the
     # bottom, starting on the left hand side. If a comment field is moved to
     # somewhere else then it isn't moved to either side.
@@ -1207,13 +1275,13 @@ class BulkDateTime(BulkBase):
         if val is None:
             val = self.main_widget.minimumDateTime()
         else:
-            val = QDateTime(val)
+            val = qt_from_dt(val)
         self.main_widget.setDateTime(val)
         self.ignore_change_signals = False
 
     def getter(self):
         val = self.main_widget.dateTime()
-        if val <= UNDEFINED_QDATETIME:
+        if is_date_undefined(val):
             val = None
         else:
             val = qt_to_dt(val)

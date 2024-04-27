@@ -5,16 +5,18 @@ __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import weakref, sys, json
+import json
+import sys
+import weakref
 from collections import deque
-from operator import attrgetter
-from polyglot.builtins import itervalues
 from datetime import datetime
+from operator import attrgetter
 
-from calibre import human_readable, prints, force_unicode
-from calibre.utils.date import local_tz, as_utc
-from calibre.utils.icu import sort_key, lower
+from calibre import force_unicode, human_readable, prints
 from calibre.ebooks import BOOK_EXTENSIONS
+from calibre.utils.date import as_utc, local_tz
+from calibre.utils.icu import lower, sort_key
+from polyglot.builtins import itervalues
 
 bexts = frozenset(BOOK_EXTENSIONS) - {'mbp', 'tan', 'rar', 'zip', 'xml'}
 
@@ -66,8 +68,9 @@ class FileOrFolder:
         if self.storage_id == self.object_id:
             self.storage_prefix = 'mtp:::%s:::'%self.persistent_id
 
+        # Ignore non ebook files and AppleDouble files
         self.is_ebook = (not self.is_folder and
-                self.name.rpartition('.')[-1].lower() in bexts)
+                self.name.rpartition('.')[-1].lower() in bexts and not self.name.startswith('._'))
 
     def __repr__(self):
         name = 'Folder' if self.is_folder else 'File'

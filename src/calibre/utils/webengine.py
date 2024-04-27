@@ -1,18 +1,14 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2021, Kovid Goyal <kovid at kovidgoyal.net>
 
 
 import json
 import os
-from qt.core import QBuffer, QIODevice, QObject, pyqtSignal, sip
-from qt.webengine import (
-    QWebEngineProfile, QWebEngineScript, QWebEngineSettings, QWebEngineUrlScheme
-)
 
-from calibre.constants import (
-    FAKE_PROTOCOL, SPECIAL_TITLE_FOR_WEBENGINE_COMMS, cache_dir
-)
+from qt.core import QBuffer, QIODevice, QObject, pyqtSignal, sip
+from qt.webengine import QWebEngineProfile, QWebEngineScript, QWebEngineSettings, QWebEngineUrlScheme
+
+from calibre.constants import FAKE_PROTOCOL, SPECIAL_TITLE_FOR_WEBENGINE_COMMS, cache_dir
 
 
 def setup_fake_protocol():

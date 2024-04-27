@@ -10,9 +10,23 @@ import copy
 import re
 from enum import Enum
 from functools import partial
+
 from qt.core import (
-    QCheckBox, QColor, QComboBox, QDialog, QDialogButtonBox, QGridLayout, QGroupBox,
-    QHBoxLayout, QIcon, QLabel, QLineEdit, QRadioButton, QSpinBox, Qt, QVBoxLayout,
+    QCheckBox,
+    QColor,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QIcon,
+    QLabel,
+    QLineEdit,
+    QRadioButton,
+    QSpinBox,
+    Qt,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -278,9 +292,15 @@ class CreateCustomColumn(QDialog):
         self.g = g = QGridLayout()
         l.addLayout(g)
         l.addStretch(10)
+        bbl = QHBoxLayout()
+        txt = QLabel(_('Pressing OK will require restarting calibre even if nothing was changed'))
+        txt.setWordWrap(True)
+        bbl.addWidget(txt)
+        bbl.addStretch(1)
         self.button_box = bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         bb.accepted.connect(self.accept), bb.rejected.connect(self.reject)
-        l.addWidget(bb)
+        bbl.addWidget(bb)
+        l.addLayout(bbl)
 
         def add_row(text, widget):
             if text is None:
@@ -323,10 +343,16 @@ class CreateCustomColumn(QDialog):
         self.use_decorations = ud = QCheckBox(_("Show &checkmarks"), self)
         ud.setToolTip(_("Show check marks in the GUI. Values of 'yes', 'checked', and 'true'\n"
             "will show a green check. Values of 'no', 'unchecked', and 'false' will show a red X.\n"
-            "Everything else will show nothing."))
+            "Everything else will show nothing. Note that the values of 'true' and 'false' don't\n"
+            "follow calibre's language settings and are always in English."))
         h.addWidget(ud)
         self.is_names = ins = QCheckBox(_("Contains names"), self)
-        ins.setToolTip(_("Check this box if this column contains names, like the authors column."))
+        ins.setToolTip('<p>' + _('Check this box if this column contains names, '
+             'like the authors column. If checked, the item separator will be an ampersand '
+             '(&) instead of a comma (,), sorting will be done using a computed value '
+             'that respects the author sort tweaks (for example converting "Firstname '
+             'Lastname" into "Lastname, Firstname"), and item order will be '
+             'preserved.')+'</p>')
         h.addWidget(ins)
         add_row(_("&Column type:"), h)
 
@@ -396,16 +422,20 @@ class CreateCustomColumn(QDialog):
                 ('side', _('Show heading to the side of the text'))
         ):
             ct.addItem(text, k)
-        ct.setToolTip(_('Choose whether or not the column heading is shown in the Book\n'
-                        'details panel and, if shown, where'))
-        self.comments_heading_position_label = add_row(_('Column heading:'), ct)
+        ct.setToolTip('<p>' +
+                      _('Choose whether or not the column heading is shown in the Book '
+                      'details panel and, if shown, where. Setting this to '
+                      "'Show heading to the side of the text' moves the information "
+                      "from dislayed with other comments to displayed with the "
+                      "non-comments columns.") + '</p>')
+        self.comments_heading_position_label = add_row(_('Heading position:'), ct)
 
         self.comments_type = ct = QComboBox(self)
         for k, text in (
                 ('html', 'HTML'),
                 ('short-text', _('Short text, like a title')),
                 ('long-text', _('Plain text')),
-                ('markdown', _('Plain text formatted using markdown'))
+                ('markdown', _('Plain text formatted using Markdown'))
         ):
             ct.addItem(text, k)
         ct.setToolTip(_('Choose how the data in this column is interpreted.\n'
@@ -457,9 +487,9 @@ class CreateCustomColumn(QDialog):
         l.addStretch()
         add_row(None, l)
         l = QHBoxLayout()
-        self.composite_in_comments_box = cmc = QCheckBox(_("Show with comments in book details"))
+        self.composite_in_comments_box = cmc = QCheckBox(_("Show with comments in Book details"))
         cmc.setToolTip('<p>' + _('If you check this box then the column contents '
-                                 'will show in the Comments section in book details. '
+                                 'will show in the Comments section in the Book details. '
                                  'You can indicate whether not to have a header or '
                                  'to put a header above the column. If you want a '
                                  "header beside the data, don't check this box. "
@@ -908,6 +938,7 @@ class CreateNewCustomColumn:
         INVALID_DISPLAY = 7
         EXCEPTION_RAISED = 8
         MUST_RESTART = 9
+        COLUMN_EDITED = 11
 
     def __init__(self, gui):
         self.gui = gui
@@ -967,20 +998,40 @@ class CreateNewCustomColumn:
                 'colnum': self.created_count,
                 'is_multiple': is_multiple,
             }
+
+        return self._create_or_edit_column(lookup_name, freeze_lookup_name=freeze_lookup_name,
+                                           operation='create')
+
+    def edit_existing_column(self, lookup_name):
+        if lookup_name not in self.custcols:
+            return self.Result.INVALID_KEY
+        return self._create_or_edit_column(lookup_name, freeze_lookup_name=False, operation='edit')
+
+    def _create_or_edit_column(self, lookup_name, freeze_lookup_name, operation=None):
         try:
             dialog = CreateCustomColumn(self.gui, self, lookup_name,
                                         self.gui.library_view.model().orig_headers,
                                         freeze_lookup_name=freeze_lookup_name)
             if dialog.result() == QDialog.DialogCode.Accepted and self.cc_column_key is not None:
                 cc = self.custcols[lookup_name]
-                self.db.create_custom_column(
-                                label=cc['label'],
-                                name=cc['name'],
-                                datatype=cc['datatype'],
-                                is_multiple=cc['is_multiple'],
-                                display=cc['display'])
-                self.gui.must_restart_before_config = True
-                return (self.Result.COLUMN_ADDED, self.cc_column_key)
+                if operation == 'create':
+                    self.db.create_custom_column(
+                                    label=cc['label'],
+                                    name=cc['name'],
+                                    datatype=cc['datatype'],
+                                    is_multiple=bool(cc['is_multiple']),
+                                    display=cc['display'])
+                    self.gui.must_restart_before_config = True
+                    return (self.Result.COLUMN_ADDED, self.cc_column_key)
+                # editing/viewing
+                if operation == 'edit':
+                    self.db.set_custom_column_metadata(cc['colnum'], name=cc['name'],
+                                                  label=cc['label'], display=cc['display'],
+                                                  notify=False)
+                    if '*must_restart' in cc:
+                        self.gui.must_restart_before_config = True
+                    return (self.Result.COLUMN_EDITED, self.cc_column_key)
+                return (self.Result.CANCELED, self.cc_column_key)
         except Exception as e:
             import traceback
             traceback.print_exc()
