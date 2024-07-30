@@ -23,6 +23,222 @@
 # - title by author
 # }}}
 
+{{{ 7.15.0 2024-07-19
+
+:: new features
+
+- Fetch news: Allow individual news sources to specify source specific options such as downloading of past editions
+
+:: bug fixes
+
+- [2073323] Windows: MTP driver: Fix a regression in the previous release that caused an error with some devices
+
+- Icon theme creation dialog: Fix various issues when creating an icon theme with many icons that have light/dark variants
+
+:: improved recipes
+- Bloomberg
+- Eenadu
+- Mediapart
+
+:: new recipes
+- WSJ News by unkn0wn
+}}}
+
+{{{ 7.14.0 2024-07-12
+
+:: new features
+
+- [2072442] Book details: When dropping files add an option to add them to the book as data files
+
+- Edit book: A new action to toggle line wrapping mode in all code editors. Can be assigned via Preferences->Keyboard shortcuts->Global actions or added to the toolbar via Preferences->Toolbars->Book wide actions
+
+- Kobo driver: Add an option to force the SeriesID for all books in a series to have the same value
+
+:: bug fixes
+
+- [2071458] Fix a regression in the previous release that broke merging of books when the confirmation for the merge was disabled
+
+- [2072412] E-book viewer: Allow some header and footer items such as progress to overflow instead of being truncated
+
+- [2072405] HTMLZ output: Make renaming of image files happen in filename order
+
+- [2072384] MTP driver: Fix infinite loop when connecting to some devices with more 65K objects in their filesystem
+
+- Fix shortcut editing widget when Qt is using a theme that inserts accelerators into push button labels automatically
+
+:: improved recipes
+- Instapaper
+- MIT Tech Review
+- Guardian
+- Liberation
+- The Times and Sunday Times
+- Bloomberg Businessweek
+- Times Literary Supplement
+
+:: new recipes
+- Ancient Egypt Magazine, Minerva Magazine, Military History Magazine and World Archaeology Magazine by unkn0wn
+
+}}}
+
+{{{ 7.13.0 2024-06-28
+
+:: new features
+
+- [2071033] When merging books add an option to store discarded or replaced covers as an alternate cover in the data folder of the target book
+
+- [2068070] Generate CSV catalog: Add a button to sort the fields by the order in which they appear in the book list
+
+:: bug fixes
+
+- [2067755] MTP driver: Preserve cover aspect ratio for thumbnail generation
+
+- [2071044] Fix identifiers not always being merged correctly when merging books
+
+- [2069541] DOCX Input: Fix extra left padding when converting lists
+
+- Amazon metadata download: Get title and comments for audiobook pages
+
+- Amazon metadata: When filtering search engine results by title ignore words of the title that are purely punctuation
+
+- When matching books on a device to book in the library assume a match if the title and any one author match, don't require all authors to match
+
+- [2069553] Update Google Images cover download plugin for website changes
+
+- [2069494] When adding new books if the timestamp is specified as undefined use the current timestamp
+
+- Content server: Fix systemd pre-activated socket not working
+
+- [2071390] Content server: Fix no KFX download link in OPDS acquisition feeds
+
+:: improved recipes
+- Harpers
+- Wall Street Journal
+- Liberation
+- How to Geek
+- Make Use Of
+- TechCrunch
+- LifeHacker
+- India Today
+- 1843
+- Reuters
+- The Week India
+- Slate
+
+:: new recipes
+- Times Literary Supplement by unkn0wn
+- Wall Street Journal Magazine by unkn0wn
+- Various Valnet Publishing Group recipes by Spicy Poison
+- VOX, The Good E-reder and The e-book Reader by SpicyPoison
+- Gates Notes, Greatist, Halthline and United Nations by SpicyPoison
+}}}
+
+{{{ 7.12.0 2024-05-30
+
+:: new features
+
+- [2067167] E-book polishing: Add option to download external resources (images/stylesheets/etc.)
+
+- Conversion: Add an option under Structure detection to automatically fill in blank alt attributes for images that have alt text in the image file metadata
+
+- [2067437] Content server: Use the book title as the filename for downloaded highlights
+
+- Review downloaded metadata dialog: Add a "Previous" button to go back to the last reviewed book
+
+:: bug fixes
+
+- Content server viewer: Fix the bottom of the text being cut off on mobile browsers when not in full screen mode. Unfortunately, this means the viewer now requires a browser no more than two years old.
+
+- [2067168] Kindle driver: Increase the size of the cover thumbnails sent to the Scribe
+
+- [1943495] Kindle output: Fix cover images that contain EXIF data without a rotation not displaying on the Kindle lockscreen
+
+- E-book viewer: Fix ruby tags not excluded when searching for text
+
+- [2067128] Content server viewer: Fix a regression in the previous release that broke searching
+
+:: improved recipes
+- Economist Espresso
+- Slate
+
+}}}
+
+{{{ 7.11.0 2024-05-24
+
+:: new features
+
+- Kindle driver: Add support for sending cover thumbnails to the Kindle Scribe
+
+- A new options under Preferences->Look & feel to draw covers with rounded corners
+
+- [2064674] Bulk metadata edit: Add a new tab where you can create rules to transform tags/authors/publishers for the selected books
+
+- [2065544] Tag browser context menu for Formats now has Open with menu items
+
+- [2064665] E-book viewer: When hovering over the top/bottom margin show a button indicating that a click will open the viewer controls. Can be configured via The Headers and footers section of the viewer Preferences.
+
+- Spell check dialog: Also show count of currently displayed words
+
+:: bug fixes
+
+- [2065249] E-book viewer: Fix searching not ignoring ruby text
+
+- Edit book: Save the state of the current book when opening a new book via File->Open book
+
+- [2064887] Edit book: Fix importing a list of words into a user dictionary not working
+
+- EPUB3 metadata: Do not fail to read metadata in the presence on invalid calibre user metadata in the OPF file with empty keys
+
+- Get books: Fix rules to map tags on adding books not being applied to books downloaded via Get books
+
+- [2064792] Spellcheck dialog: Move the checkbox to hide correctly spelled words with the rest of the checkboxes that filter the word list
+
+:: improved recipes
+- Slate
+- Wall Street Journal
+- London Review of Books
+- Economist
+- Bloomberg
+- Business Week
+- The World Ahead
+- National Geographic
+
+:: new recipes
+- Collider, Comic Book Archive, Make Use Of, MoviewWeb and ScreenRant by Spicy Poison
+- Lex Fridman Podcast by unkn0wn
+
+}}}
+
+{{{ 7.10.0 2024-05-03
+
+:: new features
+
+- Export of calibre data: Ensure individual part files in the exported data are no larger than one gigabyte even
+  if the library contains individual files larger than that size.
+
+  Note that this means that exports created by calibre from this version
+  on will not be importable by earlier versions. However, exports from
+  earlier versions should still be importable.
+
+- Edit book: Spell check: Add options to exclude words in ALL CAPS or with numbers or in camelCase/snake_case from the list of words
+
+- Allow easily inverting the current search via the right click menu on the search box
+
+:: bug fixes
+
+- [2064546] Kobo driver: Fix database unsupported error with newest firmware
+
+- [2063301] DOCX Input: Fix text elements containing only whitespace being incorrectly ignored
+
+- Bulk metadata dialog: Do not fail when setting covers from ebook files and some of the files have invalid covers
+
+:: improved recipes
+- Economist
+- The Week
+- Caravan Magazine
+- Financial Times
+
+}}}
+
 {{{ 7.9.0 2024-04-19
 
 :: new features
@@ -590,7 +806,7 @@
 
 - MTP driver: Ignore top level folders whose names start with a leading dot Also ignore AppleDouble files, top level system and fonts folders and sdr folders on Kindle devices
 
-- [2033074] FB2 Input: use the <p> tag for paragraphs that dont contain other block content
+- [2033074] FB2 Input: use the <p> tag for paragraphs that don't contain other block content
 
 - [2033118] E-book viewer: Fix clicking on the back/forward buttons not working in some situations
 
